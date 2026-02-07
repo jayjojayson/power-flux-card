@@ -4,7 +4,6 @@ The **Power Flux Card** is an advanced, animated energy flow card for Home Assis
 
 <img width="1%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/screenshot.png" />
 
-
 ### ✨ Features
 
 - **Real-time Animation**: Visualizes energy flow with moving particles.
