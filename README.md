@@ -2,6 +2,9 @@
 
 The **Power Flux Card** is an advanced, animated energy flow card for Home Assistant. It visualizes the power distribution between Solar, Grid, Battery, and Consumers with beautiful neon effects and smooth animations.
 
+<img width="1%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/screenshot.png" />
+
+
 ### ✨ Features
 
 - **Real-time Animation**: Visualizes energy flow with moving particles.
