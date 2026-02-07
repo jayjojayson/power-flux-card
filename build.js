@@ -15,38 +15,46 @@ console.log('Processing languages...');
 const langFiles = fs.readdirSync(SRC_DIR).filter(file => file.startsWith('lang-') && file.endsWith('.js'));
 let langsScript = '';
 
+// We will construct the translation objects
+let langDefinitions = '';
+let mergeScript = `
+const editorTranslations = {};
+const cardTranslations = {};
+`;
+
 langFiles.forEach(file => {
     const langCode = file.replace('lang-', '').replace('.js', '');
     
     let content = fs.readFileSync(path.join(SRC_DIR, file), 'utf8');
-    // Extract object
+    // Remove export default
     content = content.replace('export default', '').trim();
     if (content.endsWith(';')) {
         content = content.slice(0, -1);
     }
     
-    const varName = langCode; 
+    // Assign to a variable
+    langDefinitions += `const lang_${langCode} = ${content};\n`;
     
-    langsScript += `const ${varName} = ${content};\n`;
+    // Add to merge logic
+    mergeScript += `editorTranslations['${langCode}'] = lang_${langCode}.editor;\n`;
+    mergeScript += `cardTranslations['${langCode}'] = lang_${langCode}.card;\n`;
 });
+
+langsScript = langDefinitions + mergeScript;
+
+const imagesScript = '';
 
 // Process Editor
 console.log('Processing editor...');
 let editorContent = fs.readFileSync(path.join(SRC_DIR, 'power-flux-card-editor.js'), 'utf8');
-// Remove imports
-editorContent = editorContent.replace(/import .* from .*/g, '');
+// Remove imports/exports if any
+editorContent = editorContent.replace(/import .* from .*/g, '').replace(/export .*/g, '');
 
 // Process Main Card
 console.log('Processing main card...');
 let mainContent = fs.readFileSync(path.join(SRC_DIR, 'power-flux-card.js'), 'utf8');
 // Remove imports
 mainContent = mainContent.replace(/import .* from .*/g, '');
-
-// Replace getConfigElement
-mainContent = mainContent.replace(
-    /static async getConfigElement\(\) \{[\s\S]*?return document\.createElement\("power-flux-card-editor"\);\s*\}/,
-    `static async getConfigElement() { return document.createElement("power-flux-card-editor"); }`
-);
 
 // 5. Combine everything
 console.log('Writing output...');
