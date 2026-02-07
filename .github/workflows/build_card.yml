@@ -1,4 +1,4 @@
-name: Build Sun Position Card
+name: Build Power Flux Card
 
 # Wann soll der Workflow starten?
 on:
