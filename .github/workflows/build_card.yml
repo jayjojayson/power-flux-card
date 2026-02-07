@@ -1,0 +1,46 @@
+name: Build Sun Position Card
+
+# Wann soll der Workflow starten?
+on:
+  # 1. Automatisch bei Änderungen im Main-Branch
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'      # Nur wenn sich Quellcode ändert
+      - 'build.js'    # Oder das Build-Skript
+
+  # 2. Manuell per Button ausführbar
+  workflow_dispatch:
+
+# Berechtigungen setzen, damit der Bot die Datei speichern darf
+permissions:
+  contents: write
+
+jobs:
+  build-and-commit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Den Code aus dem Repo holen
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Node.js installieren (Version 20)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3. Das Build-Skript ausführen
+      - name: Run Build Script
+        run: node build.js
+
+      # 4. Prüfen, ob sich die Datei geändert hat und committen
+      # Wenn keine Änderung erkannt wird, macht dieser Schritt einfach nichts (kein Fehler)
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "power-flux-card Auto-build"
+          file_pattern: dist/power-flux-card.js
+    

@@ -1,0 +1,1652 @@
+console.log(
+  "%c⚡ Power-Flux-Card v_2.0 ready",
+  "background: #2ecc71; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
+);
+
+const fireEvent = (node, type, detail, options) => {
+  options = options || {};
+  detail = detail === null || detail === undefined ? {} : detail;
+  const event = new Event(type, {
+    bubbles: options.bubbles === undefined ? true : options.bubbles,
+    cancelable: Boolean(options.cancelable),
+    composed: options.composed === undefined ? true : options.composed,
+  });
+  event.detail = detail;
+  node.dispatchEvent(event);
+  return event;
+};
+
+const LitElement = customElements.get("ha-lit-element") || Object.getPrototypeOf(customElements.get("home-assistant-main"));
+const html = LitElement.prototype.html;
+const css = LitElement.prototype.css;
+
+// --- EDITOR TRANSLATIONS ---
+const editorTranslations = {
+  de: {
+    "card.label_import": "Import",
+    "card.label_export": "Export",
+    "editor.main_title": "Haupt Entitäten",
+    "editor.solar_section": "Solar/PV",
+    "editor.grid_section": "Netz Import/Export",
+    "editor.battery_section": "Batterie",
+    "editor.consumers_section": "Zusätzliche Verbraucher",
+    "editor.options_section": "Darstellung & Optionen",
+    "editor.flow_rate_title": "Flussraten (W) an Röhren anzeigen",
+    "editor.label_toggle": "Label im Kreis anzeigen",
+    "editor.compact_view": "Kompakte Ansicht (evcc)",
+    "editor.hide_inactive": "Inaktive Röhren ausblenden",
+    "editor.entity": "Entität (Watt)",
+    "editor.label": "Beschriftung",
+    "editor.icon": "Icon",
+  },
+  en: {
+    "card.label_import": "Import",
+    "card.label_export": "Export",
+    "editor.main_title": "Main Entities",
+    "editor.solar_section": "Solar",
+    "editor.grid_section": "Grid Connection",
+    "editor.battery_section": "Battery",
+    "editor.consumers_section": "Additional Consumers",
+    "editor.options_section": "Appearance & Options",
+    "editor.flow_rate_title": "Show Flow Rates (W) on pipes",
+    "editor.label_toggle": "Show Label in Bubble",
+    "editor.compact_view": "Compact View (evcc)",
+    "editor.hide_inactive": "Hide Inactive Pipes",
+    "editor.entity": "Entity (Watt)",
+    "editor.label": "Label",
+    "editor.icon": "Icon",
+  }
+};
+
+class PowerFluxCardEditor extends LitElement {
+  
+  static get properties() {
+    return {
+      hass: {},
+      _config: { state: true },
+      _subView: { state: true } // Controls which sub-page is open (null = main)
+    };
+  }
+
+  setConfig(config) {
+    this._config = config;
+  }
+  
+  _localize(key) {
+    const lang = this.hass && this.hass.language ? this.hass.language : 'en';
+    const dict = editorTranslations[lang] || editorTranslations['en'];
+    return dict[key] || editorTranslations['en'][key] || key;
+  }
+
+  _valueChanged(ev) {
+    if (!this._config || !this.hass) return;
+    
+    const target = ev.target;
+    const key = target.configValue || this._currentConfigValue; 
+    
+    let value;
+    if (target.tagName === 'HA-SWITCH') {
+        value = target.checked;
+    } else if (ev.detail && 'value' in ev.detail) {
+        value = ev.detail.value;
+    } else {
+        value = target.value;
+    }
+    
+    if (value === null || value === undefined) {
+        value = "";
+    }
+
+    if (key) {
+        const entityKeys = [
+            'solar', 'grid', 'grid_export', 
+            'battery', 'battery_soc', 
+            'consumer_1', 'consumer_2', 'consumer_3'
+        ];
+
+        let newConfig = { ...this._config };
+
+        if (entityKeys.includes(key)) {
+            const currentEntities = newConfig.entities || {};
+            const newEntities = { ...currentEntities, [key]: value };
+            newConfig.entities = newEntities;
+        } else {
+            newConfig[key] = value;
+            
+            if (key === 'show_comet_tail' && value === true) {
+                newConfig.show_dashed_line = false;
+            }
+            if (key === 'show_dashed_line' && value === true) {
+                newConfig.show_comet_tail = false;
+            }
+        }
+
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+  }
+
+  _goSubView(view) {
+      this._subView = view;
+  }
+
+  _goBack() {
+      this._subView = null;
+  }
+
+  static get styles() {
+    return css`
+      .card-config {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 24px;
+      }
+      .header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+      }
+      .back-btn {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: bold;
+          color: var(--primary-color);
+      }
+      .menu-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--divider-color);
+          margin-bottom: 13px;
+          cursor: pointer;
+          transition: background 0.2s;
+      }
+      .menu-item:hover {
+          background: rgba(var(--rgb-primary-text-color), 0.05);
+      }
+      .menu-icon {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-weight: bold;
+      }
+      .switch-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 0;
+        margin-top: 8px;
+      }
+      .switch-label {
+        font-weight: bold;
+      }
+      .section-title {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+      ha-selector {
+        width: 100%;
+        display: block;
+        margin-bottom: 12px;
+      }
+      .consumer-group {
+        padding: 10px;
+        border-radius: 8px;
+        border-bottom: 1px solid var(--divider-color);
+        margin-bottom: 12px;
+      }
+      .consumer-title {
+        font-weight: bold; 
+        margin-bottom: 8px;
+        color: var(--primary-text-color);
+      }
+      .separator {
+          border-bottom: 1px solid var(--divider-color);
+          margin: 10px 0;
+      }
+    `;
+  }
+
+  // --- SUBVIEW RENDERING ---
+
+  _renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+      return html`
+        <div class="header">
+            <div class="back-btn" @click=${this._goBack}>
+                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+            </div>
+            <h2>${this._localize('editor.solar_section')}</h2>
+        </div>
+        
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${entitySelectorSchema}
+            .value=${entities.solar}
+            .configValue=${'solar'}
+            .label=${this._localize('editor.entity')}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+        
+        <div class="separator"></div>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${textSelectorSchema}
+            .value=${this._config.solar_label}
+            .configValue=${'solar_label'}
+            .label=${this._localize('editor.label') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${iconSelectorSchema}
+            .value=${this._config.solar_icon}
+            .configValue=${'solar_icon'}
+            .label=${this._localize('editor.icon') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <div class="separator"></div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_label_solar !== false} 
+                .configValue=${'show_label_solar'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.label_toggle')}</div>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_flow_rate_solar !== false} 
+                .configValue=${'show_flow_rate_solar'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
+        </div>
+      `;
+  }
+
+  _renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+      return html`
+        <div class="header">
+            <div class="back-btn" @click=${this._goBack}>
+                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+            </div>
+            <h2>${this._localize('editor.grid_section')}</h2>
+        </div>
+        
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${entitySelectorSchema}
+            .value=${entities.grid}
+            .configValue=${'grid'}
+            .label=${this._localize('card.label_import') + " (W)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${entitySelectorSchema}
+            .value=${entities.grid_export}
+            .configValue=${'grid_export'}
+            .label=${this._localize('card.label_export') + " (W, Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <div class="separator"></div>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${textSelectorSchema}
+            .value=${this._config.grid_label}
+            .configValue=${'grid_label'}
+            .label=${this._localize('editor.label') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${iconSelectorSchema}
+            .value=${this._config.grid_icon}
+            .configValue=${'grid_icon'}
+            .label=${this._localize('editor.icon') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <div class="separator"></div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_label_grid !== false} 
+                .configValue=${'show_label_grid'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.label_toggle')}</div>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_flow_rate_grid !== false} 
+                .configValue=${'show_flow_rate_grid'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
+        </div>
+      `;
+  }
+
+  _renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+      return html`
+        <div class="header">
+            <div class="back-btn" @click=${this._goBack}>
+                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+            </div>
+            <h2>${this._localize('editor.battery_section')}</h2>
+        </div>
+        
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${entitySelectorSchema}
+            .value=${entities.battery}
+            .configValue=${'battery'}
+            .label=${this._localize('editor.entity')}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${entitySelectorSchema}
+            .value=${entities.battery_soc}
+            .configValue=${'battery_soc'}
+            .label=${"Ladestand (%)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+        
+        <div class="separator"></div>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${textSelectorSchema}
+            .value=${this._config.battery_label}
+            .configValue=${'battery_label'}
+            .label=${this._localize('editor.label') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+
+        <ha-selector
+            .hass=${this.hass}
+            .selector=${iconSelectorSchema}
+            .value=${this._config.battery_icon}
+            .configValue=${'battery_icon'}
+            .label=${this._localize('editor.icon') + " (Optional)"}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+        
+        <div class="separator"></div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_label_battery !== false} 
+                .configValue=${'show_label_battery'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.label_toggle')}</div>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_flow_rate_battery !== false} 
+                .configValue=${'show_flow_rate_battery'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
+        </div>
+      `;
+  }
+
+  _renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+      return html`
+        <div class="header">
+            <div class="back-btn" @click=${this._goBack}>
+                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+            </div>
+            <h2>${this._localize('editor.consumers_section')}</h2>
+        </div>
+
+        <div class="consumer-group">
+            <div class="consumer-title" style="color: #a855f7;">🚗 Links (Lila)</div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${entities.consumer_1}
+                .configValue=${'consumer_1'}
+                .label=${this._localize('editor.entity')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${textSelectorSchema}
+                .value=${this._config.consumer_1_label}
+                .configValue=${'consumer_1_label'}
+                .label=${this._localize('editor.label')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${iconSelectorSchema}
+                .value=${this._config.consumer_1_icon}
+                .configValue=${'consumer_1_icon'}
+                .label=${this._localize('editor.icon')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+        </div>
+
+        <div class="consumer-group">
+            <div class="consumer-title" style="color: #f97316;">♨️ Mitte (Orange)</div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${entities.consumer_2}
+                .configValue=${'consumer_2'}
+                .label=${this._localize('editor.entity')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${textSelectorSchema}
+                .value=${this._config.consumer_2_label}
+                .configValue=${'consumer_2_label'}
+                .label=${this._localize('editor.label')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${iconSelectorSchema}
+                .value=${this._config.consumer_2_icon}
+                .configValue=${'consumer_2_icon'}
+                .label=${this._localize('editor.icon')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+        </div>
+
+        <div class="consumer-group">
+            <div class="consumer-title" style="color: #06b6d4;">🏊 Rechts (Türkis)</div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${entities.consumer_3}
+                .configValue=${'consumer_3'}
+                .label=${this._localize('editor.entity')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${textSelectorSchema}
+                .value=${this._config.consumer_3_label}
+                .configValue=${'consumer_3_label'}
+                .label=${this._localize('editor.label')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${iconSelectorSchema}
+                .value=${this._config.consumer_3_icon}
+                .configValue=${'consumer_3_icon'}
+                .label=${this._localize('editor.icon')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+        </div>
+      `;
+  }
+
+  render() {
+    if (!this.hass || !this._config) {
+      return html``;
+    }
+
+    const entities = this._config.entities || {};
+
+    const entitySelectorSchema = { entity: { domain: ["sensor", "input_number"] } };
+    const textSelectorSchema = { text: {} };
+    const iconSelectorSchema = { icon: {} };
+
+    // SUBVIEW ROUTING
+    if (this._subView === 'solar') return this._renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+    if (this._subView === 'grid') return this._renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+    if (this._subView === 'battery') return this._renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+    if (this._subView === 'consumers') return this._renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+
+
+    // MAIN MENU VIEW
+    return html`
+      <div class="card-config">
+        
+        <div class="section-title">${this._localize('editor.main_title')}</div>
+
+        <div class="menu-item" @click=${() => this._goSubView('solar')}>
+            <div class="menu-icon"><ha-icon icon="mdi:solar-power"></ha-icon> ${this._localize('editor.solar_section')}</div>
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </div>
+
+        <div class="menu-item" @click=${() => this._goSubView('grid')}>
+            <div class="menu-icon"><ha-icon icon="mdi:transmission-tower"></ha-icon> ${this._localize('editor.grid_section')}</div>
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </div>
+
+        <div class="menu-item" @click=${() => this._goSubView('battery')}>
+            <div class="menu-icon"><ha-icon icon="mdi:battery-high"></ha-icon> ${this._localize('editor.battery_section')}</div>
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </div>
+        
+        <div class="menu-item" @click=${() => this._goSubView('consumers')}>
+            <div class="menu-icon"><ha-icon icon="mdi:devices"></ha-icon> ${this._localize('editor.consumers_section')}</div>
+            <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </div>
+
+        <div class="section-title">${this._localize('editor.options_section')}</div>
+        
+        <div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0.5, max: 1.5, step: 0.05, mode: "slider" } }}
+                .value=${this._config.zoom !== undefined ? this._config.zoom : 0.9}
+                .configValue=${'zoom'}
+                .label=${"🔍 Zoom (Standard View)"}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_neon_glow !== false} 
+                .configValue=${'show_neon_glow'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Neon Glow</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_donut_border === true}
+                .configValue=${'show_donut_border'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Donut Chart (Grid/Haus)</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_comet_tail === true}
+                .configValue=${'show_comet_tail'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Comet Tail Effect</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_dashed_line === true}
+                .configValue=${'show_dashed_line'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Dashed Line Animation</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.use_colored_values === true}
+                .configValue=${'use_colored_values'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Farbige Textwerte</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.hide_consumer_icons === true}
+                .configValue=${'hide_consumer_icons'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">Icons unten ausblenden</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.hide_inactive_flows !== false}
+                .configValue=${'hide_inactive_flows'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.hide_inactive')}</div>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.compact_view === true} 
+                .configValue=${'compact_view'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.compact_view')}</div>
+        </div>
+		
+      </div>
+    `;
+  }
+}
+
+customElements.define("power-flux-card-editor", PowerFluxCardEditor);
+
+// --- CARD TRANSLATIONS ---
+const cardTranslations = {
+  de: {
+    "card.label_solar": "Solar",
+    "card.label_grid": "Netz",
+    "card.label_battery": "Batterie",
+    "card.label_house": "Verbrauch",
+    "card.label_car": "E-Auto",
+    "card.label_import": "Import",
+    "card.label_export": "Export",
+  },
+  en: {
+    "card.label_solar": "Solar",
+    "card.label_grid": "Grid",
+    "card.label_battery": "Battery",
+    "card.label_house": "Consumption",
+    "card.label_car": "Car",
+    "card.label_import": "Import",
+    "card.label_export": "Export",
+  }
+};
+
+class PowerFluxCard extends LitElement {
+  
+  static get properties() {
+    return {
+      hass: {},
+      config: {},
+      _cardWidth: { state: true },
+    };
+  }
+
+  _localize(key) {
+    const lang = this.hass && this.hass.language ? this.hass.language : 'en';
+    const dict = cardTranslations[lang] || cardTranslations['en'];
+    return dict[key] || cardTranslations['en'][key] || key;
+  }
+
+  static async getConfigElement() {
+    return document.createElement("power-flux-card-editor");
+  }
+
+  static getStubConfig() {
+    return {
+      zoom: 0.9,
+      compact_view: false,
+      show_donut_border: false,
+      show_neon_glow: true,
+      show_comet_tail: false,
+      show_dashed_line: false,
+      show_tinted_background: false,
+      hide_inactive_flows: true,
+      show_flow_rate_solar: true,
+      show_flow_rate_grid: true,
+      show_flow_rate_battery: true,
+      show_label_solar: false,
+      show_label_grid: false,
+      show_label_battery: false,
+      show_label_house: false,
+      use_colored_values: false,
+      hide_consumer_icons: false,
+      entities: {
+        solar: "",
+        grid: "",
+        grid_export: "",
+        battery: "",
+        battery_soc: "",
+        consumer_1: "",
+        consumer_2: "",
+        consumer_3: ""
+      }
+    };
+  }
+
+  setConfig(config) {
+    if (!config.entities) {
+       // Init allow
+    }
+    this.config = config;
+  }
+
+  firstUpdated() {
+    this._resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0) {
+          this._cardWidth = entry.contentRect.width;
+        }
+      }
+    });
+    this._resizeObserver.observe(this);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+  }
+
+  static get styles() {
+    return css`
+      :host {
+        display: block;
+        --neon-yellow: #ffdd00;
+        --neon-blue: #3b82f6;
+        --neon-green: #00ff88;
+        --neon-pink: #ff0080;
+        --neon-red: #ff3333;
+        --grid-grey: #9e9e9e; 
+        --export-purple: #a855f7;
+        --flow-dasharray: 0 380; 
+      }
+      ha-card {
+        padding: 0; 
+        position: relative;
+        overflow: hidden; 
+        transition: height 0.3s ease;
+      }
+      
+      /* --- COMPACT VIEW STYLES --- */
+      .compact-container {
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 120px;
+        box-sizing: border-box;
+      }
+
+      .compact-bracket {
+        height: 24px;
+        width: 100%;
+        position: relative;
+      }
+      .bracket-svg {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        overflow: visible; /* Important for icons */
+      }
+      .bracket-line {
+        fill: none;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: d 0.5s ease;
+      }
+      .compact-icon-wrapper {
+        position: absolute;
+        top: -6px; /* Default top, overridden inline */
+        padding: 0 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: left 0.5s ease;
+      }
+      .compact-icon {
+        --mdc-icon-size: 20px;
+      }
+
+      .compact-bar-wrapper {
+        height: 36px;
+        width: 100%;
+        background: #333;
+        border-radius: 5px;
+        margin: 4px 0;
+        display: flex;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .bar-segment {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: bold;
+        color: black; 
+        transition: width 0.5s ease;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      
+      /* Source Colors */
+      .src-solar { background: var(--neon-green); color: black; }
+      .src-grid { background: var(--grid-grey); color: black; }
+      .src-battery { background: var(--neon-yellow); color: black; }
+
+      /* --- STANDARD VIEW STYLES --- */
+      .scale-wrapper {
+        width: 420px; 
+        transform-origin: top center; 
+        transition: transform 0.1s linear; 
+        margin: 0 auto;
+      }
+
+      .absolute-container {
+        position: relative;
+        width: 100%;
+        transition: top 0.3s ease; 
+      }
+
+      .bubble {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: transparent;
+        border: 2px solid var(--divider-color, #333);
+        display: block; 
+        position: absolute;
+        z-index: 2;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+      }
+      
+      .bubble.tinted { background: rgba(255, 255, 255, 0.05); }
+      .bubble.tinted.solar { background: color-mix(in srgb, var(--neon-yellow), transparent 85%); }
+      .bubble.tinted.grid { background: color-mix(in srgb, var(--neon-blue), transparent 85%); }
+      .bubble.tinted.battery { background: color-mix(in srgb, var(--neon-green), transparent 85%); }
+      .bubble.tinted.c1 { background: color-mix(in srgb, #a855f7, transparent 85%); }
+      .bubble.tinted.c2 { background: color-mix(in srgb, #f97316, transparent 85%); }
+      .bubble.tinted.c3 { background: color-mix(in srgb, #06b6d4, transparent 85%); }
+
+      .bubble.house { border-color: var(--neon-pink); }
+      .bubble.house.tinted { background: color-mix(in srgb, var(--neon-pink), transparent 85%); }
+      .bubble.house.donut { border: none !important; --house-gradient: var(--neon-pink); background: transparent; }
+      .bubble.house.donut.tinted { background: color-mix(in srgb, var(--neon-pink), transparent 85%); }
+      .bubble.house.donut::before {
+          content: ""; position: absolute; inset: 0; border-radius: 50%; padding: 4px; 
+          background: var(--house-gradient);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude; z-index: -1; pointer-events: none;
+      }
+      
+      .icon-svg, .icon-custom {
+          width: 34px; height: 34px; position: absolute; top: 13px; left: 50%; margin-left: -17px; z-index: 2; display: block;
+      }
+      .icon-custom { --mdc-icon-size: 34px; }
+      
+      .sub { 
+        font-size: 9px; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.5px;
+        line-height: 1.1; z-index: 2; position: absolute; top: 48px; left: 0; width: 100%; text-align: center; margin: 0; pointer-events: none;
+      }
+
+      .value { 
+        font-weight: bold; font-size: 15px; white-space: nowrap; z-index: 2; transition: color 0.3s ease;
+        line-height: 1.2; position: absolute; bottom: 11px; left: 0; width: 100%; text-align: center; margin: 0;
+      }
+      
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+      .spin-slow { animation: spin 12s linear infinite; transform-origin: center; }
+      
+      @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+      .pulse { animation: pulse-opacity 2s ease-in-out infinite; }
+
+      @keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+      .float { animation: float-y 3s ease-in-out infinite; }
+
+      .solar { border-color: var(--neon-yellow); }
+      .battery { border-color: var(--neon-green); }
+      .grid { border-color: var(--neon-blue); }
+      .c1 { border-color: #a855f7; }
+      .c2 { border-color: #f97316; }
+      .c3 { border-color: #06b6d4; }
+      .inactive { border-color: var(--secondary-text-color); }
+
+      .glow.solar { box-shadow: 0 0 15px rgba(255, 221, 0, 0.4); }
+      .glow.battery { box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
+      .glow.grid { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+      .glow.c1 { box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+      .glow.c2 { box-shadow: 0 0 15px rgba(249, 115, 22, 0.4); }
+      .glow.c3 { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+
+      .node-solar { top: 70px; left: 5px; }     
+      .node-grid { top: 70px; left: 165px; }     
+      .node-battery { top: 70px; left: 325px; }  
+      .node-house { top: 220px; left: 165px; }   
+      .node-c1 { top: 370px; left: 5px; }
+      .node-c2 { top: 370px; left: 165px; }
+      .node-c3 { top: 370px; left: 325px; }
+
+      svg { position: absolute; top: 7; left: 25; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+      
+      .bg-path { fill: none; stroke-width: 6; transition: opacity 0.3s ease; }
+      .bg-solar { stroke: var(--neon-yellow); }
+      .bg-grid { stroke: var(--neon-blue); }
+      .bg-battery { stroke: var(--neon-green); }
+      .bg-export { stroke: var(--neon-red); }
+      .bg-c1 { stroke: #a855f7; }
+      .bg-c2 { stroke: #f97316; }
+      .bg-c3 { stroke: #06b6d4; }
+      
+      .flow-line { 
+        fill: none; stroke-width: var(--flow-stroke-width, 8px); stroke-linecap: round; stroke-dasharray: var(--flow-dasharray);   
+        animation: dash linear infinite; opacity: 0; transition: opacity 0.5s;
+      }
+      .flow-solar { stroke: var(--neon-yellow); }
+      .flow-grid { stroke: var(--neon-blue); }
+      .flow-battery { stroke: var(--neon-green); }
+      .flow-export { stroke: var(--neon-red); }
+
+      @keyframes dash { to { stroke-dashoffset: -1500; } }
+
+      .flow-text {
+        font-size: 10px; font-weight: bold; text-anchor: middle; fill: #fff; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.8)); transition: opacity 0.3s ease;
+      }
+      .flow-text.no-shadow { filter: none; }
+      .text-solar { fill: var(--neon-yellow); }
+      .text-grid { fill: var(--neon-blue); }
+      .text-export { fill: var(--neon-red); }
+      .text-battery { fill: var(--neon-green); }
+    `;
+  }
+
+  // --- SVG ICON RENDERER ---
+  _renderIcon(type, val = 0, colorOverride = null) {
+      if (type === 'solar') {
+          const animate = Math.round(val) > 0 ? 'spin-slow' : '';
+          const color = colorOverride || 'var(--neon-yellow)';
+          return html`<svg class="icon-svg ${animate}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+      }
+      if (type === 'grid') {
+          const animate = Math.round(val) > 0 ? 'pulse' : '';
+          const color = colorOverride || 'var(--neon-blue)';
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L12 22"></path><path d="M5 8L19 8"></path><path d="M4 14L20 14"></path><path d="M2 22L22 22"></path><circle class="${animate}" cx="12" cy="4" r="4" fill="${color}" stroke="none"></circle></svg>`;
+      }
+      if (type === 'battery') {
+          const soc = Math.min(Math.max(val, 0), 100) / 100;
+          const rectHeight = 14 * soc;
+          const rectY = 18 - rectHeight;
+          const rectColor = soc > 0.2 ? 'var(--neon-green)' : 'var(--neon-red)'; 
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" ry="2"></rect><line x1="10" y1="2" x2="14" y2="2"></line><rect x="7" y="${rectY}" width="10" height="${rectHeight}" fill="${rectColor}" stroke="none"></rect></svg>`;
+      }
+      if (type === 'house') {
+          const strokeColor = colorOverride || 'var(--neon-pink)';
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+      }
+      if (type === 'car') {
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M14 17h-5"></path></svg>`;
+      }
+      if (type === 'heater') {
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a4 4 0 0 0 4-4V8a4 4 0 0 0-8 0v8a4 4 0 0 0 4 4z"></path><path class="float" style="animation-delay: 0s;" d="M8 4c0-1.5 1-2 2-2s2 .5 2 2"></path><path class="float" style="animation-delay: 0.5s;" d="M14 4c0-1.5 1-2 2-2s2 .5 2 2"></path></svg>`;
+      }
+      if (type === 'pool') {
+          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path class="float" d="M2 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M12 2v6"></path><path d="M9 5h6"></path></svg>`;
+      }
+      return html``;
+  }
+
+  _formatPower(val) {
+      if (val === 0) return "0";
+      if (Math.abs(val) >= 1000) {
+          return (val / 1000).toFixed(1) + " kW";
+      }
+      return Math.round(val) + " W";
+  }
+
+  // --- DOM NODE SVG GENERATOR ---
+  _renderSVGPath(d, color) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("class", "bracket-line");
+      path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", "1.5");
+      path.setAttribute("fill", "none");
+      path.style.stroke = color;
+      path.style.fill = "none";
+      return path;
+  }
+
+  // --- SQUARE BRACKET GENERATOR ---
+  _createBracketPath(startPx, widthPx, direction) {
+      if (widthPx < 5) return "";
+      
+      const r = 5; 
+      const startX = startPx;
+      const endX = startPx + widthPx;
+      
+      let yBase, yLine;
+      
+      if (direction === 'down') {
+          yBase = 24; 
+          yLine = 4;  
+      } else {
+          yBase = 0; 
+          yLine = 20; 
+      }
+
+      const height = Math.abs(yBase - yLine);
+      const rEff = Math.min(r, height / 2, widthPx / 2);
+      
+      const yCorner = direction === 'down' ? yLine + rEff : yLine - rEff;
+
+      return `
+        M ${startX} ${yBase} 
+        L ${startX} ${yCorner} 
+        Q ${startX} ${yLine} ${startX + rEff} ${yLine} 
+        L ${endX - rEff} ${yLine} 
+        Q ${endX} ${yLine} ${endX} ${yCorner} 
+        L ${endX} ${yBase}
+      `;
+  }
+
+  // --- RENDER COMPACT VIEW ---
+  _renderCompactView(entities) {
+      // 1. Get Values
+      const getVal = (entity) => {
+          const state = this.hass.states[entity];
+          return state ? parseFloat(state.state) || 0 : 0;
+      };
+
+      const solar = entities.solar ? Math.max(0, getVal(entities.solar)) : 0;
+      const gridMain = entities.grid ? getVal(entities.grid) : 0;
+      const gridExportSensor = entities.grid_export ? getVal(entities.grid_export) : 0;
+      const battery = entities.battery ? getVal(entities.battery) : 0;
+      const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0; // EV Value
+
+      // 2. Logic Calculation
+      let gridImport = 0;
+      let gridExport = 0;
+
+      if (entities.grid_export && entities.grid_export !== "") {
+          gridImport = gridMain > 0 ? gridMain : 0;
+          gridExport = Math.abs(gridExportSensor);
+      } else {
+          gridImport = gridMain > 0 ? gridMain : 0;
+          gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
+      }
+
+      const batteryCharge = battery > 0 ? battery : 0;
+      const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
+
+      let solarToBatt = 0;
+      let gridToBatt = 0;
+
+      if (batteryCharge > 0) {
+          if (solar >= batteryCharge) {
+              solarToBatt = batteryCharge;
+              gridToBatt = 0;
+          } else {
+              solarToBatt = solar;
+              gridToBatt = batteryCharge - solar;
+          }
+      }
+
+      const solarTotalToCons = Math.max(0, solar - solarToBatt - gridExport);
+      const gridTotalToCons = Math.max(0, gridImport - gridToBatt);
+      const battTotalToCons = batteryDischarge;
+      
+      const totalCons = solarTotalToCons + gridTotalToCons + battTotalToCons;
+      
+      // Calculate Splits
+      let evPower = 0;
+      let housePower = totalCons;
+      
+      if (c1Val > 0 && totalCons > 0) {
+          evPower = Math.min(c1Val, totalCons);
+          housePower = totalCons - evPower;
+      }
+      
+      // Calculate Total Bar Width (Flux)
+      // The Bar represents: Battery Discharge + Solar + Grid Import
+      // This MUST equal: House + EV + Export + Battery Charge
+      
+      // SOURCES (for Bar Segments)
+      const srcBattery = batteryDischarge;
+      const srcSolar   = solar; // Solar includes Export + Charge + Cons
+      const srcGrid    = gridImport;
+      
+      const totalFlux = srcBattery + srcSolar + srcGrid;
+      
+      // DESTINATIONS (for Bottom Brackets)
+      const destHouse  = housePower;
+      const destEV     = evPower;
+      const destExport = gridExport;
+      // Note: Battery Charge is also a destination (internal flow), but usually not bracketed if we only want "Consumers"
+      // If we don't bracket Charge, there will be a gap. We can accept that or add a Charge bracket.
+      // Given user request "Only EV... and Grid Export", we stick to those.
+
+      const threshold = 0.1;
+      const availableWidth = (this._cardWidth && this._cardWidth > 0) ? this._cardWidth : (this.offsetWidth || 400);
+      const fullWidth = availableWidth - 40; 
+
+      if (totalFlux <= threshold) {
+          return html`<ha-card><div class="compact-container">Waiting for data...</div></ha-card>`;
+      }
+
+      // --- GENERATE BAR SEGMENTS (Aggregated by Source) ---
+      // Order: Battery -> Solar -> Grid
+      const barSegments = [];
+      let currentX = 0;
+
+      const addSegment = (val, color, type, label) => {
+          if (val <= threshold) return;
+          const pct = val / totalFlux;
+          const width = pct * fullWidth;
+          barSegments.push({
+              val,
+              color,
+              widthPct: pct * 100,
+              widthPx: width,
+              startPx: currentX,
+              type,
+              label
+          });
+          currentX += width;
+      }
+
+      addSegment(srcBattery, 'var(--neon-yellow)', 'battery', 'battery');
+      addSegment(srcSolar,   'var(--neon-green)',  'solar',   'solar');
+      addSegment(srcGrid,    'var(--grid-grey)',   'grid',    'grid');
+
+      // --- GENERATE TOP BRACKETS (Based on Bar Segments) ---
+      const topBrackets = barSegments.map(s => {
+          const path = this._createBracketPath(s.startPx, s.widthPx, 'down');
+          let icon = '';
+          let iconColor = '';
+          if (s.type === 'solar')   { icon = 'mdi:weather-sunny'; iconColor = 'var(--neon-green)'; }
+          if (s.type === 'grid')    { icon = 'mdi:transmission-tower'; iconColor = 'var(--grid-grey)'; }
+          if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--neon-yellow)'; }
+          
+          return { path, width: s.widthPx, center: s.startPx + (s.widthPx/2), icon, iconColor };
+      });
+
+      // --- GENERATE BOTTOM BRACKETS (Independent Calculation) ---
+      // Order: House -> EV -> Export
+      const bottomBrackets = [];
+      let bottomX = 0;
+
+      const addBottomBracket = (val, type) => {
+          if (val <= threshold) return;
+          const pct = val / totalFlux;
+          const width = pct * fullWidth;
+          
+          let icon = '';
+          let iconColor = '';
+          
+          if (type === 'house')  { icon = 'mdi:home'; iconColor = 'var(--primary-text-color)'; }
+          if (type === 'car')    { icon = 'mdi:car-electric'; iconColor = '#a855f7'; }
+          if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-purple)'; }
+
+          const path = this._createBracketPath(bottomX, width, 'up');
+          bottomBrackets.push({
+              path,
+              width: width,
+              center: bottomX + (width/2),
+              icon,
+              iconColor
+          });
+          bottomX += width;
+      };
+
+      addBottomBracket(destHouse, 'house');
+      addBottomBracket(destEV, 'car');
+      addBottomBracket(destExport, 'export');
+
+      // Note: If there is Battery Charging happening, bottomX will not reach fullWidth. 
+      // This leaves a gap at the end (or between segments depending on logic), which is visually correct 
+      // as "Internal/Stored Energy" is not an external output.
+
+      return html`
+        <ha-card>
+            <div class="compact-container">
+                <!-- TOP BRACKETS -->
+                <div class="compact-bracket">
+                    <svg class="bracket-svg" width="100%" height="100%">
+                        ${topBrackets.map(b => this._renderSVGPath(b.path, b.iconColor))}
+                    </svg>
+                    ${topBrackets.map(b => b.width > 20 ? html`
+                    <div class="compact-icon-wrapper" style="left: ${b.center}px; transform: translateX(-50%); top: 4px;">
+                        <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor};"></ha-icon>
+                    </div>` : '')}
+                </div>
+
+                <!-- MAIN BAR -->
+                <div class="compact-bar-wrapper">
+                    ${barSegments.map(s => html`
+                        <div class="bar-segment" style="width: ${s.widthPct}%; background: ${s.color}; color: ${s.color === 'var(--export-purple)' ? 'white' : 'black'};">
+                            ${s.widthPx > 35 ? this._formatPower(s.val) : ''}
+                        </div>
+                    `)}
+                </div>
+
+                <!-- BOTTOM BRACKETS -->
+                <div class="compact-bracket">
+                    <svg class="bracket-svg" width="100%" height="100%">
+                        ${bottomBrackets.map(b => this._renderSVGPath(b.path, b.iconColor))}
+                    </svg>
+                    ${bottomBrackets.map(b => b.width > 20 ? html`
+                    <div class="compact-icon-wrapper" style="left: ${b.center}px; transform: translateX(-50%); top: -3px;">
+                        <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor};"></ha-icon>
+                    </div>` : '')}
+                </div>
+            </div>
+        </ha-card>
+      `;
+  }
+
+  // --- RENDER STANDARD VIEW ---
+  _renderStandardView(entities) {
+    // FIX: Default to hidden unless explicitly set to false
+    const hideInactive = this.config.hide_inactive_flows !== false;
+    
+    const globalFlowRate = this.config.show_flow_rates !== false;
+    
+    // FLOW RATE TOGGLES
+    const showFlowSolar = this.config.show_flow_rate_solar !== undefined ? this.config.show_flow_rate_solar : globalFlowRate;
+    const showFlowGrid = this.config.show_flow_rate_grid !== undefined ? this.config.show_flow_rate_grid : globalFlowRate;
+    const showFlowBattery = this.config.show_flow_rate_battery !== undefined ? this.config.show_flow_rate_battery : globalFlowRate;
+
+    // LABEL TOGGLES
+    const showLabelSolar = this.config.show_label_solar === true;
+    const showLabelGrid = this.config.show_label_grid === true;
+    const showLabelBattery = this.config.show_label_battery === true;
+    const showLabelHouse = this.config.show_label_house === true;
+
+    const useColoredValues = this.config.use_colored_values === true;
+    const showDonut = this.config.show_donut_border === true;
+    const showTail = this.config.show_comet_tail === true;
+    const showDashedLine = this.config.show_dashed_line === true;
+    const showTint = this.config.show_tinted_background === true;
+    const hideConsumerIcons = this.config.hide_consumer_icons === true;
+    const showNeonGlow = this.config.show_neon_glow !== false; 
+    
+    // CUSTOM LABELS
+    const labelSolarText = this.config.solar_label || this._localize('card.label_solar');
+    const labelGridText = this.config.grid_label || this._localize('card.label_import'); 
+    const labelBatteryText = this.config.battery_label || (entities.battery && this.hass.states[entities.battery] && this.hass.states[entities.battery].state > 0 ? '+' : '-') + " " + this._localize('card.label_battery');
+    const labelHouseText = this.config.house_label || this._localize('card.label_house');
+
+    // CUSTOM ICONS
+    const iconSolar = this.config.solar_icon;
+    const iconGrid = this.config.grid_icon;
+    const iconBattery = this.config.battery_icon;
+
+    // Determine existence of main entities
+    const hasSolar = !!(entities.solar && entities.solar !== "");
+    const hasGrid = !!(entities.grid && entities.grid !== "");
+    const hasBattery = !!(entities.battery && entities.battery !== "");
+    
+    const styleSolar = hasSolar ? '' : 'display: none;';
+    const styleSolarBatt = (hasSolar && hasBattery) ? '' : 'display: none;';
+    const styleGrid = hasGrid ? '' : 'display: none;';
+    const styleGridBatt = (hasGrid && hasBattery) ? '' : 'display: none;';
+    const styleBattery = hasBattery ? '' : 'display: none;';
+
+    const textClass = showNeonGlow ? 'flow-text' : 'flow-text no-shadow';
+
+    // Custom Labels for Consumers
+    const labelC1 = this.config.consumer_1_label || "E-Auto";
+    const labelC2 = this.config.consumer_2_label || "Heizung";
+    const labelC3 = this.config.consumer_3_label || "Pool";
+
+    const getVal = (entity) => {
+      const state = this.hass.states[entity];
+      return state ? parseFloat(state.state) || 0 : 0;
+    };
+
+    const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0;
+    const c2Val = entities.consumer_2 ? getVal(entities.consumer_2) : 0;
+    const c3Val = entities.consumer_3 ? getVal(entities.consumer_3) : 0;
+
+    const showC1 = (entities.consumer_1 && Math.round(c1Val) > 0);
+    const showC2 = (entities.consumer_2 && Math.round(c2Val) > 0);
+    const showC3 = (entities.consumer_3 && Math.round(c3Val) > 0);
+    const anyBottomVisible = showC1 || showC2 || showC3;
+
+    const solar = hasSolar ? getVal(entities.solar) : 0;
+    const gridMain = hasGrid ? getVal(entities.grid) : 0;
+    const gridExpSensor = (hasGrid && entities.grid_export) ? getVal(entities.grid_export) : 0;
+    const battery = hasBattery ? getVal(entities.battery) : 0;
+    const battSoc = (hasBattery && entities.battery_soc) ? getVal(entities.battery_soc) : 0;
+
+    const solarVal = Math.max(0, solar);
+    
+    let gridImport = 0;
+    let gridExport = 0;
+
+    if (hasGrid) {
+        if (entities.grid_export && entities.grid_export !== "") {
+            gridImport = gridMain > 0 ? gridMain : 0;
+            gridExport = Math.abs(gridExpSensor);
+        } else {
+            gridImport = gridMain > 0 ? gridMain : 0;
+            gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
+        }
+    }
+
+    const batteryCharge = battery > 0 ? battery : 0;
+    const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
+
+    let solarToBatt = 0;
+    let gridToBatt = 0;
+
+    if (hasBattery && batteryCharge > 0) {
+        if (solarVal >= batteryCharge) {
+            solarToBatt = batteryCharge;
+            gridToBatt = 0;
+        } else {
+            solarToBatt = solarVal; 
+            gridToBatt = batteryCharge - solarVal;
+        }
+    }
+
+    const solarToHouse = Math.max(0, solarVal - solarToBatt - gridExport);
+    const gridToHouse = Math.max(0, gridImport - gridToBatt);
+    const house = solarToHouse + gridToHouse + batteryDischarge;
+
+    const isTopArcActive = (solarToBatt > 0);
+    const topShift = isTopArcActive ? 0 : 50; 
+    let baseHeight = anyBottomVisible ? 480 : 340;
+    const contentHeight = baseHeight - topShift; 
+
+    const designWidth = 420;
+    const availableWidth = this._cardWidth || designWidth;
+    let scale = availableWidth / designWidth;
+    const userZoom = this.config.zoom !== undefined ? this.config.zoom : 0.9;
+    scale = scale * userZoom;
+
+    if (scale < 0.5) scale = 0.5;
+    if (scale > 1.5) scale = 1.5;
+
+    const finalCardHeightPx = contentHeight * scale;
+
+    let houseGradientVal = '';
+    let houseTextCol = useColoredValues ? 'var(--neon-pink)' : ''; 
+    const tintClass = showTint ? 'tinted' : '';
+    const glowClass = showNeonGlow ? 'glow' : '';
+    
+    let houseDominantColor = 'var(--neon-pink)';
+    if (house > 0) {
+        if (solarToHouse >= gridToHouse && solarToHouse >= batteryDischarge) {
+            houseDominantColor = 'var(--neon-yellow)';
+        } else if (gridToHouse >= solarToHouse && gridToHouse >= batteryDischarge) {
+            houseDominantColor = 'var(--neon-blue)';
+        } else if (batteryDischarge >= solarToHouse && batteryDischarge >= gridToHouse) {
+            houseDominantColor = 'var(--neon-green)';
+        }
+    }
+
+    if (showDonut) {
+        if (house > 0) {
+            const pctSolar = (solarToHouse / house) * 100;
+            const pctGrid = (gridToHouse / house) * 100;
+            const pctBatt = (batteryDischarge / house) * 100;
+            
+            let stops = [];
+            let current = 0;
+            if (pctSolar > 0) { stops.push(`var(--neon-yellow) ${current}% ${current + pctSolar}%`); current += pctSolar; }
+            if (pctGrid > 0) { stops.push(`var(--neon-blue) ${current}% ${current + pctGrid}%`); current += pctGrid; }
+            if (pctBatt > 0) { stops.push(`var(--neon-green) ${current}% ${current + pctBatt}%`); current += pctBatt; }
+            if (current < 99.9) { stops.push(`var(--neon-pink) ${current}% 100%`); }
+            
+            houseGradientVal = `conic-gradient(${stops.join(', ')})`;
+
+            if (useColoredValues) {
+                const maxVal = Math.max(solarToHouse, gridToHouse, batteryDischarge);
+                if (maxVal > 0) {
+                    if (maxVal === solarToHouse) houseTextCol = 'var(--neon-yellow)';
+                    else if (maxVal === gridToHouse) houseTextCol = 'var(--neon-blue)';
+                    else if (maxVal === batteryDischarge) houseTextCol = 'var(--neon-green)';
+                } else {
+                    houseTextCol = 'var(--neon-pink)';
+                }
+            }
+        } else {
+            houseGradientVal = `var(--neon-pink)`;
+            houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
+        }
+    } else {
+        houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
+    }
+
+    const houseTintStyle = showTint 
+        ? `background: color-mix(in srgb, ${houseDominantColor}, transparent 85%);` 
+        : '';
+    
+    const houseGlowStyle = showNeonGlow
+        ? `box-shadow: 0 0 15px color-mix(in srgb, ${houseDominantColor}, transparent 60%);`
+        : `box-shadow: none;`;
+
+    const houseBubbleStyle = `${showDonut ? `--house-gradient: ${houseGradientVal};` : ''} ${houseTintStyle} ${houseGlowStyle}`;
+
+    const isSolarActive = Math.round(solarVal) > 0;
+    const isGridActive = Math.round(gridImport) > 0;
+
+    const solarColor = isSolarActive ? 'var(--neon-yellow)' : 'var(--secondary-text-color)';
+    const gridColor = isGridActive ? 'var(--neon-blue)' : 'var(--secondary-text-color)';
+
+    const getAnimStyle = (val) => {
+        if (val <= 1) return "opacity: 0;"; 
+        const userMinDuration = 7; 
+        const userMaxDuration = 11; 
+        const userFactor = 20000; 
+        let duration = userFactor / val; 
+        duration = Math.max(userMinDuration, Math.min(userMaxDuration, duration));
+        
+        // Adjust speed for dashed line (Factor to slow down: 5x)
+        if (showDashedLine) {
+            duration = duration * 5;
+        }
+        
+        return `opacity: 1; animation-duration: ${duration}s;`;
+    };
+
+    const getPipeStyle = (val) => {
+        if (!hideInactive) return "opacity: 0.2;"; 
+        return val > 1 ? "opacity: 0.2;" : "opacity: 0;"; 
+    };
+
+    const getTextStyle = (val, type) => {
+        let isVisible = false;
+        if (type === 'solar') isVisible = showFlowSolar;
+        else if (type === 'grid') isVisible = showFlowGrid;
+        else if (type === 'battery') isVisible = showFlowBattery;
+        
+        if (!isVisible) return "display: none;"; 
+        return val > 5 ? "opacity: 1;" : "opacity: 0;"; 
+    };
+
+    const getColorStyle = (colorVar) => {
+        return useColoredValues ? `color: var(${colorVar});` : '';
+    };
+    const getConsumerColorStyle = (hex) => {
+        return useColoredValues ? `color: ${hex};` : '';
+    }
+
+    const renderLabel = (text, isVisible) => {
+        if (!isVisible) return html``;
+        return html`<div class="sub">${text}</div>`;
+    };
+
+    const renderMainIcon = (type, val, customIcon, color = null) => {
+        if (customIcon) {
+            const style = color ? `color: ${color};` : (type === 'solar' ? 'color: var(--neon-yellow);' : (type === 'grid' ? 'color: var(--neon-blue);' : (type === 'battery' ? 'color: var(--neon-green);' : '')));
+            return html`<ha-icon icon="${customIcon}" class="icon-custom" style="${style}"></ha-icon>`;
+        }
+        return this._renderIcon(type, val, color);
+    };
+
+    const getCustomClass = (icon) => icon ? 'has-custom-icon' : '';
+
+    const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
+        if (!isVisible) return html``;
+        
+        const customIcon = this.config[`${configKey}_icon`];
+        let iconContent;
+
+        const isCustom = !hideConsumerIcons && !!customIcon;
+        const dynamicClass = isCustom ? 'has-custom-icon' : ''; 
+
+        if (hideConsumerIcons) {
+             iconContent = html``;
+        } else if (customIcon) {
+             iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${hexColor};"></ha-icon>`;
+        } else {
+             iconContent = this._renderIcon(iconType, val);
+        }
+
+        return html`
+            <div class="bubble ${cssClass} node ${cssClass.replace('c','node-c')} ${tintClass} ${dynamicClass} ${glowClass}">
+                ${iconContent}
+                ${renderLabel(label, true)}
+                <div class="value" style="${getConsumerColorStyle(hexColor)}">${this._formatPower(val)}</div>
+            </div>
+        `;
+    };
+
+    const getConsumerPipeStyle = (isActive, val) => {
+        if (!isActive) return "display: none;";
+        return getPipeStyle(val);
+    };
+    
+    const getConsumerAnimStyle = (isActive, val) => {
+        if (!isActive) return "display: none;";
+        return getAnimStyle(val);
+    };
+
+    const pathSolarHouse = "M 50 160 Q 50 265 165 265";
+    const pathSolarBatt  = "M 50 70 Q 210 -20 370 70"; 
+    const pathGridImport = "M 210 160 L 210 220";
+    const pathGridExport = "M 165 115 Q 130 145 95 115";
+    const pathGridToBatt = "M 255 115 Q 290 145 325 115"; 
+    const pathBattHouse  = "M 370 160 Q 370 265 255 265";
+    const pathHouseC1 = "M 165 265 Q 50 265 50 370"; 
+    const pathHouseC2 = "M 210 310 L 210 370";
+    const pathHouseC3 = "M 255 265 Q 370 265 370 370";
+
+    const houseTextStyle = houseTextCol ? `color: ${houseTextCol};` : '';
+    const dashArrayVal = showTail ? '30 360' : (showDashedLine ? '13 13' : '0 380');
+    const strokeWidthVal = showDashedLine ? 4 : 8;
+
+    return html`
+      <ha-card style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
+        
+        <div class="scale-wrapper" style="transform: scale(${scale});">
+            
+            <div class="absolute-container" style="height: ${baseHeight}px; top: -${topShift}px;">
+                <svg height="${baseHeight}" viewBox="0 0 420 ${baseHeight}" preserveAspectRatio="xMidYMid meet">
+                    
+                    <path class="bg-path bg-solar" d="${pathSolarHouse}" style="${getPipeStyle(solarToHouse)} ${styleSolar}" />
+                    <path class="bg-path bg-solar" d="${pathSolarBatt}" style="${getPipeStyle(solarToBatt)} ${styleSolarBatt}" />
+                    
+                    <path class="bg-path bg-grid" d="${pathGridImport}" style="${getPipeStyle(gridToHouse)} ${styleGrid}" />
+                    <path class="bg-path bg-export" d="${pathGridExport}" style="${getPipeStyle(gridExport)} ${styleGrid}" />
+                    <path class="bg-path bg-grid" d="${pathGridToBatt}" style="${getPipeStyle(gridToBatt)} ${styleGridBatt}" />
+                    
+                    <path class="bg-path bg-battery" d="${pathBattHouse}" style="${getPipeStyle(batteryDischarge)} ${styleBattery}" />
+
+                    <path d="${pathHouseC1}" fill="none" stroke="#a855f7" stroke-width="6" style="${getConsumerPipeStyle(showC1, c1Val)}" />
+                    <path d="${pathHouseC2}" fill="none" stroke="#f97316" stroke-width="6" style="${getConsumerPipeStyle(showC2, c2Val)}" />
+                    <path d="${pathHouseC3}" fill="none" stroke="#06b6d4" stroke-width="6" style="${getConsumerPipeStyle(showC3, c3Val)}" />
+
+                    <path class="flow-line flow-solar" d="${pathSolarHouse}" style="${getAnimStyle(solarToHouse)} ${styleSolar}" />
+                    <path class="flow-line flow-solar" d="${pathSolarBatt}" style="${getAnimStyle(solarToBatt)} ${styleSolarBatt}" />
+                    
+                    <path class="flow-line flow-grid" d="${pathGridImport}" style="${getAnimStyle(gridToHouse)} ${styleGrid}" />
+                    <path class="flow-line flow-export" d="${pathGridExport}" style="${getAnimStyle(gridExport)} ${styleGrid}" />
+                    <path class="flow-line flow-grid" d="${pathGridToBatt}" style="${getAnimStyle(gridToBatt)} ${styleGridBatt}" />
+                    
+                    <path class="flow-line flow-battery" d="${pathBattHouse}" style="${getAnimStyle(batteryDischarge)} ${styleBattery}" />
+
+                    <path class="flow-line" d="${pathHouseC1}" stroke="#a855f7" style="${getConsumerAnimStyle(showC1, c1Val)}" />
+                    <path class="flow-line" d="${pathHouseC2}" stroke="#f97316" style="${getConsumerAnimStyle(showC2, c2Val)}" />
+                    <path class="flow-line" d="${pathHouseC3}" stroke="#06b6d4" style="${getConsumerAnimStyle(showC3, c3Val)}" />
+
+                    <text x="100" y="235" class="${textClass} text-solar" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
+                    <text x="210" y="45" class="${textClass} text-solar" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>
+                    
+                    <text x="235" y="195" class="${textClass} text-grid" style="${getTextStyle(gridToHouse, 'grid')} ${styleGrid}">${this._formatPower(gridToHouse)}</text>
+                    <text x="130" y="145" class="${textClass} text-export" style="${getTextStyle(gridExport, 'grid')} ${styleGrid}">${this._formatPower(gridExport)}</text>
+                    <text x="290" y="145" class="${textClass} text-grid" style="${getTextStyle(gridToBatt, 'grid')} ${styleGridBatt}">${this._formatPower(gridToBatt)}</text>
+                    
+                    <text x="320" y="235" class="${textClass} text-battery" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
+
+                </svg>
+
+                ${hasSolar ? html`
+                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node node-solar ${tintClass} ${isSolarActive ? glowClass : ''} ${getCustomClass(iconSolar)}">
+                    ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
+                    ${renderLabel(labelSolarText, showLabelSolar)}
+                    <div class="value" style="${isSolarActive ? getColorStyle('--neon-yellow') : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
+                </div>` : ''}
+                
+                ${hasGrid ? html`
+                <div class="bubble ${isGridActive ? 'grid' : 'inactive'} node node-grid ${tintClass} ${isGridActive ? glowClass : ''} ${getCustomClass(iconGrid)}">
+                    ${renderMainIcon('grid', gridImport, iconGrid, gridColor)}
+                    ${renderLabel(labelGridText, showLabelGrid)}
+                    <div class="value" style="${isGridActive ? getColorStyle('--neon-blue') : `color: ${gridColor};`}">${this._formatPower(gridImport)}</div>
+                </div>` : ''}
+                
+                ${hasBattery ? html`
+                <div class="bubble battery node node-battery ${tintClass} ${glowClass} ${getCustomClass(iconBattery)}">
+                    ${renderMainIcon('battery', battSoc, iconBattery)}
+                    ${renderLabel(labelBatteryText, showLabelBattery)}
+                    <div class="value" style="${getColorStyle('--neon-green')}">${Math.round(battSoc)}%</div>
+                </div>` : ''}
+                
+                <div class="bubble house node node-house ${showDonut ? 'donut' : ''} ${tintClass}" 
+                    style="${houseBubbleStyle}">
+                    ${renderMainIcon('house', 0, null, houseDominantColor)}
+                    ${renderLabel(labelHouseText, showLabelHouse)}
+                    <div class="value" style="${houseTextStyle}">${this._formatPower(house)}</div>
+                </div>
+
+                ${renderConsumer(showC1, 'c1', 'consumer_1', labelC1, 'car', c1Val, '#a855f7')}
+                ${renderConsumer(showC2, 'c2', 'consumer_2', labelC2, 'heater', c2Val, '#f97316')}
+                ${renderConsumer(showC3, 'c3', 'consumer_3', labelC3, 'pool', c3Val, '#06b6d4')}
+                
+            </div>
+        </div>
+      </ha-card>
+    `;
+  }
+
+  render() {
+    if (!this.config || !this.hass) return html``;
+    
+    // SWITCH VIEW BASED ON CONFIG
+    if (this.config.compact_view === true) {
+        return this._renderCompactView(this.config.entities || {});
+    } else {
+        return this._renderStandardView(this.config.entities || {});
+    }
+  }
+}
+
+customElements.define("power-flux-card", PowerFluxCard);
+
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: "power-flux-card",
+  name: "Power Flux Card",
+  description: "Advanced Animated Energy Flow Card",
+});
