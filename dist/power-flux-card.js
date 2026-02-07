@@ -1662,3 +1662,4 @@ window.customCards.push({
   name: "Power Flux Card",
   description: "Advanced Animated Energy Flow Card",
 });
+
