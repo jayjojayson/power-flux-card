@@ -28,7 +28,18 @@ The ⚡ Power Flux Card is an advanced, animated energy flow card for Home Assis
 
 ### 🚀 Installation
 
-#### HACS (Recommended)
+### HACS (Recommended)
+
+- Add this repository via the link in Home Assistant.
+ 
+   [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jayjojayson&repository=power-flux-card&category=plugin)
+
+- The "Detailed Charts Panel" should now be available in HACS. Click on "INSTALL".
+- The resource will be automatically added to your Lovelace configuration.
+- Create the file `detail-charts-views.js` in the `/config/www/` folder.
+- 
+
+#### HACS (manual)
 1. Ensure HACS is installed.
 2. Add this repository as a custom repository in HACS.
 3. Search for "Power Flux Card" and install it.
