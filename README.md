@@ -11,8 +11,8 @@
 
 The ⚡ Power Flux Card is an advanced, animated energy flow card for Home Assistant. It visualizes the power distribution between Solar, Grid, Battery, and Consumers with beautiful neon effects and smooth animations.
 
-<img width="45%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card.jpg" />
-<img width="45%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" />
+<img width="50%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card.jpg" />
+<img width="50%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" />
 
 ### ✨ Features
 
@@ -38,7 +38,6 @@ The ⚡ Power Flux Card is an advanced, animated energy flow card for Home Assis
 - The "Detailed Charts Panel" should now be available in HACS. Click on "INSTALL".
 - The resource will be automatically added to your Lovelace configuration.
 - Create the file `detail-charts-views.js` in the `/config/www/` folder.
-- 
 
 #### HACS (manual)
 1. Ensure HACS is installed.
@@ -48,7 +47,7 @@ The ⚡ Power Flux Card is an advanced, animated energy flow card for Home Assis
 
 #### Manual Installation
 1. Download `power-flux-card.js` from the [Releases](../../releases) page.
-2. Upload it to your `www` folder in Home Assistant.
+2. Upload it to `www/community/power-flux-card/` folder in Home Assistant.
 3. Add the resource in your Dashboard configuration:
    - URL: `/local/power-flux-card.js`
    - Type: JavaScript Module
