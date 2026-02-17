@@ -6,7 +6,7 @@ const DIST_DIR = 'dist';
 const OUTPUT_FILE = path.join(DIST_DIR, 'power-flux-card.js');
 
 // Ensure dist dir exists
-if (!fs.existsSync(DIST_DIR)){
+if (!fs.existsSync(DIST_DIR)) {
     fs.mkdirSync(DIST_DIR);
 }
 
@@ -24,17 +24,17 @@ const cardTranslations = {};
 
 langFiles.forEach(file => {
     const langCode = file.replace('lang-', '').replace('.js', '');
-    
+
     let content = fs.readFileSync(path.join(SRC_DIR, file), 'utf8');
     // Remove export default
     content = content.replace('export default', '').trim();
     if (content.endsWith(';')) {
         content = content.slice(0, -1);
     }
-    
+
     // Assign to a variable
     langDefinitions += `const lang_${langCode} = ${content};\n`;
-    
+
     // Add to merge logic
     mergeScript += `editorTranslations['${langCode}'] = lang_${langCode}.editor;\n`;
     mergeScript += `cardTranslations['${langCode}'] = lang_${langCode}.card;\n`;

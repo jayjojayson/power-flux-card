@@ -1,14 +1,23 @@
+import lang_en from "./lang-en.js";
+import lang_de from "./lang-de.js";
+
+const editorTranslations = {
+    "en": lang_en.editor,
+    "de": lang_de.editor
+};
+
+
 const fireEvent = (node, type, detail, options) => {
-  options = options || {};
-  detail = detail === null || detail === undefined ? {} : detail;
-  const event = new Event(type, {
-    bubbles: options.bubbles === undefined ? true : options.bubbles,
-    cancelable: Boolean(options.cancelable),
-    composed: options.composed === undefined ? true : options.composed,
-  });
-  event.detail = detail;
-  node.dispatchEvent(event);
-  return event;
+    options = options || {};
+    detail = detail === null || detail === undefined ? {} : detail;
+    const event = new Event(type, {
+        bubbles: options.bubbles === undefined ? true : options.bubbles,
+        cancelable: Boolean(options.cancelable),
+        composed: options.composed === undefined ? true : options.composed,
+    });
+    event.detail = detail;
+    node.dispatchEvent(event);
+    return event;
 };
 
 const LitElement = customElements.get("ha-lit-element") || Object.getPrototypeOf(customElements.get("home-assistant-main"));
@@ -16,83 +25,84 @@ const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
 class PowerFluxCardEditor extends LitElement {
-  
-  static get properties() {
-    return {
-      hass: {},
-      _config: { state: true },
-      _subView: { state: true } // Controls which sub-page is open (null = main)
-    };
-  }
 
-  setConfig(config) {
-    this._config = config;
-  }
-  
-  _localize(key) {
-    const lang = this.hass && this.hass.language ? this.hass.language : 'en';
-    const dict = editorTranslations[lang] || editorTranslations['en'];
-    return dict[key] || editorTranslations['en'][key] || key;
-  }
-
-  _valueChanged(ev) {
-    if (!this._config || !this.hass) return;
-    
-    const target = ev.target;
-    const key = target.configValue || this._currentConfigValue; 
-    
-    let value;
-    if (target.tagName === 'HA-SWITCH') {
-        value = target.checked;
-    } else if (ev.detail && 'value' in ev.detail) {
-        value = ev.detail.value;
-    } else {
-        value = target.value;
-    }
-    
-    if (value === null || value === undefined) {
-        value = "";
+    static get properties() {
+        return {
+            hass: {},
+            _config: { state: true },
+            _subView: { state: true } // Controls which sub-page is open (null = main)
+        };
     }
 
-    if (key) {
-        const entityKeys = [
-            'solar', 'grid', 'grid_export', 
-            'battery', 'battery_soc', 
-            'consumer_1', 'consumer_2', 'consumer_3'
-        ];
+    setConfig(config) {
+        this._config = config;
+    }
 
-        let newConfig = { ...this._config };
+    _localize(key) {
+        const lang = this.hass && this.hass.language ? this.hass.language : 'en';
+        const dict = editorTranslations[lang] || editorTranslations['en'];
+        return dict[key] || editorTranslations['en'][key] || key;
+    }
 
-        if (entityKeys.includes(key)) {
-            const currentEntities = newConfig.entities || {};
-            const newEntities = { ...currentEntities, [key]: value };
-            newConfig.entities = newEntities;
+    _valueChanged(ev) {
+        if (!this._config || !this.hass) return;
+
+        const target = ev.target;
+        const key = target.configValue || this._currentConfigValue;
+
+        let value;
+        if (target.tagName === 'HA-SWITCH') {
+            value = target.checked;
+        } else if (ev.detail && 'value' in ev.detail) {
+            value = ev.detail.value;
         } else {
-            newConfig[key] = value;
-            
-            if (key === 'show_comet_tail' && value === true) {
-                newConfig.show_dashed_line = false;
-            }
-            if (key === 'show_dashed_line' && value === true) {
-                newConfig.show_comet_tail = false;
-            }
+            value = target.value;
         }
 
-        this._config = newConfig;
-        fireEvent(this, "config-changed", { config: this._config });
+        if (value === null || value === undefined) {
+            value = "";
+        }
+
+        if (key) {
+            const entityKeys = [
+                'solar', 'grid', 'grid_export',
+                'battery', 'battery_soc',
+                'house',
+                'consumer_1', 'consumer_2', 'consumer_3'
+            ];
+
+            let newConfig = { ...this._config };
+
+            if (entityKeys.includes(key)) {
+                const currentEntities = newConfig.entities || {};
+                const newEntities = { ...currentEntities, [key]: value };
+                newConfig.entities = newEntities;
+            } else {
+                newConfig[key] = value;
+
+                if (key === 'show_comet_tail' && value === true) {
+                    newConfig.show_dashed_line = false;
+                }
+                if (key === 'show_dashed_line' && value === true) {
+                    newConfig.show_comet_tail = false;
+                }
+            }
+
+            this._config = newConfig;
+            fireEvent(this, "config-changed", { config: this._config });
+        }
     }
-  }
 
-  _goSubView(view) {
-      this._subView = view;
-  }
+    _goSubView(view) {
+        this._subView = view;
+    }
 
-  _goBack() {
-      this._subView = null;
-  }
+    _goBack() {
+        this._subView = null;
+    }
 
-  static get styles() {
-    return css`
+    static get styles() {
+        return css`
       .card-config {
         display: flex;
         flex-direction: column;
@@ -170,15 +180,15 @@ class PowerFluxCardEditor extends LitElement {
           margin: 10px 0;
       }
     `;
-  }
+    }
 
-  // --- SUBVIEW RENDERING ---
+    // --- SUBVIEW RENDERING ---
 
-  _renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.solar_section')}</h2>
         </div>
@@ -216,7 +226,7 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_solar !== false} 
+                .checked=${this._config.show_label_solar === true} 
                 .configValue=${'show_label_solar'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -232,13 +242,13 @@ class PowerFluxCardEditor extends LitElement {
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
       `;
-  }
+    }
 
-  _renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.grid_section')}</h2>
         </div>
@@ -285,7 +295,7 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_grid !== false} 
+                .checked=${this._config.show_label_grid === true} 
                 .configValue=${'show_label_grid'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -301,13 +311,13 @@ class PowerFluxCardEditor extends LitElement {
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
       `;
-  }
+    }
 
-  _renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.battery_section')}</h2>
         </div>
@@ -326,7 +336,7 @@ class PowerFluxCardEditor extends LitElement {
             .selector=${entitySelectorSchema}
             .value=${entities.battery_soc}
             .configValue=${'battery_soc'}
-            .label=${"Ladestand (%)"}
+            .label=${this._localize('editor.battery_soc_label')}
             @value-changed=${this._valueChanged}
         ></ha-selector>
         
@@ -354,7 +364,7 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_battery !== false} 
+                .checked=${this._config.show_label_battery === true} 
                 .configValue=${'show_label_battery'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -369,20 +379,44 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
-      `;
-  }
 
-  _renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.invert_battery === true} 
+                .configValue=${'invert_battery'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.invert_battery')}</div>
+        </div>
+      `;
+    }
+
+    _renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.consumers_section')}</h2>
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #a855f7;">🚗 Links (Lila)</div>
+            <div class="consumer-title">${this._localize('editor.house_total_title')}</div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${entities.house || ""}
+                .configValue=${'house'}
+                .label=${this._localize('editor.house_sensor_label')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+             <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+                ${this._localize('editor.house_sensor_hint')}
+            </div>
+        </div>
+
+        <div class="consumer-group">
+            <div class="consumer-title" style="color: #a855f7;">${this._localize('editor.consumer_1_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -412,7 +446,7 @@ class PowerFluxCardEditor extends LitElement {
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #f97316;">♨️ Mitte (Orange)</div>
+            <div class="consumer-title" style="color: #f97316;">${this._localize('editor.consumer_2_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -442,7 +476,7 @@ class PowerFluxCardEditor extends LitElement {
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #06b6d4;">🏊 Rechts (Türkis)</div>
+            <div class="consumer-title" style="color: #06b6d4;">${this._localize('editor.consumer_3_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -471,28 +505,28 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
         </div>
       `;
-  }
-
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
     }
 
-    const entities = this._config.entities || {};
+    render() {
+        if (!this.hass || !this._config) {
+            return html``;
+        }
 
-    const entitySelectorSchema = { entity: { domain: ["sensor", "input_number"] } };
-    const textSelectorSchema = { text: {} };
-    const iconSelectorSchema = { icon: {} };
+        const entities = this._config.entities || {};
 
-    // SUBVIEW ROUTING
-    if (this._subView === 'solar') return this._renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'grid') return this._renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'battery') return this._renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'consumers') return this._renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        const entitySelectorSchema = { entity: { domain: ["sensor", "input_number"] } };
+        const textSelectorSchema = { text: {} };
+        const iconSelectorSchema = { icon: {} };
+
+        // SUBVIEW ROUTING
+        if (this._subView === 'solar') return this._renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'grid') return this._renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'battery') return this._renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'consumers') return this._renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
 
 
-    // MAIN MENU VIEW
-    return html`
+        // MAIN MENU VIEW
+        return html`
       <div class="card-config">
         
         <div class="section-title">${this._localize('editor.main_title')}</div>
@@ -525,7 +559,7 @@ class PowerFluxCardEditor extends LitElement {
                 .selector=${{ number: { min: 0.5, max: 1.5, step: 0.05, mode: "slider" } }}
                 .value=${this._config.zoom !== undefined ? this._config.zoom : 0.9}
                 .configValue=${'zoom'}
-                .label=${"🔍 Zoom (Standard View)"}
+                .label=${this._localize('editor.zoom_label')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
         </div>
@@ -536,7 +570,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_neon_glow'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Neon Glow</div>
+            <div class="switch-label">${this._localize('editor.neon_glow')}</div>
         </div>
         
         <div class="switch-row">
@@ -545,7 +579,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_donut_border'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Donut Chart (Grid/Haus)</div>
+            <div class="switch-label">${this._localize('editor.donut_chart')}</div>
         </div>
         
         <div class="switch-row">
@@ -554,7 +588,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_comet_tail'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Comet Tail Effect</div>
+            <div class="switch-label">${this._localize('editor.comet_tail')}</div>
         </div>
         
         <div class="switch-row">
@@ -563,7 +597,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_dashed_line'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Dashed Line Animation</div>
+            <div class="switch-label">${this._localize('editor.dashed_line')}</div>
         </div>
         
         <div class="switch-row">
@@ -572,7 +606,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'use_colored_values'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Farbige Textwerte</div>
+            <div class="switch-label">${this._localize('editor.colored_values')}</div>
         </div>
         
         <div class="switch-row">
@@ -581,7 +615,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'hide_consumer_icons'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Icons unten ausblenden</div>
+            <div class="switch-label">${this._localize('editor.hide_consumer_icons')}</div>
         </div>
         
         <div class="switch-row">
@@ -604,7 +638,7 @@ class PowerFluxCardEditor extends LitElement {
 		
       </div>
     `;
-  }
+    }
 }
 
 customElements.define("power-flux-card-editor", PowerFluxCardEditor);

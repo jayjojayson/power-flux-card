@@ -14,6 +14,7 @@ const lang_de = {
     "editor.consumers_section": "Zusätzliche Verbraucher",
     "editor.options_section": "Darstellung & Optionen",
     "editor.flow_rate_title": "Flussraten (W) an Röhren anzeigen",
+    "editor.invert_battery": "Wert umkehren (+/-)",
     "editor.label_toggle": "Label im Kreis anzeigen",
     "editor.compact_view": "Kompakte Ansicht (evcc)",
     "editor.hide_inactive": "Inaktive Röhren ausblenden",
@@ -42,6 +43,7 @@ const lang_en = {
     "editor.consumers_section": "Additional Consumers",
     "editor.options_section": "Appearance & Options",
     "editor.flow_rate_title": "Show Flow Rates (W) on pipes",
+    "editor.invert_battery": "Invert Power Value (+/-)",
     "editor.label_toggle": "Show Label in Bubble",
     "editor.compact_view": "Compact View (evcc)",
     "editor.hide_inactive": "Hide Inactive Pipes",
@@ -69,17 +71,30 @@ cardTranslations['en'] = lang_en.card;
 
 
 
+
+
+
+const editorTranslations = {
+    "en": lang_en.editor,
+    "de": lang_de.editor
+};
+
+const cardTranslations = {
+    "en": lang_en.card,
+    "de": lang_de.card
+};
+
 const fireEvent = (node, type, detail, options) => {
-  options = options || {};
-  detail = detail === null || detail === undefined ? {} : detail;
-  const event = new Event(type, {
-    bubbles: options.bubbles === undefined ? true : options.bubbles,
-    cancelable: Boolean(options.cancelable),
-    composed: options.composed === undefined ? true : options.composed,
-  });
-  event.detail = detail;
-  node.dispatchEvent(event);
-  return event;
+    options = options || {};
+    detail = detail === null || detail === undefined ? {} : detail;
+    const event = new Event(type, {
+        bubbles: options.bubbles === undefined ? true : options.bubbles,
+        cancelable: Boolean(options.cancelable),
+        composed: options.composed === undefined ? true : options.composed,
+    });
+    event.detail = detail;
+    node.dispatchEvent(event);
+    return event;
 };
 
 const LitElement = customElements.get("ha-lit-element") || Object.getPrototypeOf(customElements.get("home-assistant-main"));
@@ -87,83 +102,84 @@ const html = LitElement.prototype.html;
 const css = LitElement.prototype.css;
 
 class PowerFluxCardEditor extends LitElement {
-  
-  static get properties() {
-    return {
-      hass: {},
-      _config: { state: true },
-      _subView: { state: true } // Controls which sub-page is open (null = main)
-    };
-  }
 
-  setConfig(config) {
-    this._config = config;
-  }
-  
-  _localize(key) {
-    const lang = this.hass && this.hass.language ? this.hass.language : 'en';
-    const dict = editorTranslations[lang] || editorTranslations['en'];
-    return dict[key] || editorTranslations['en'][key] || key;
-  }
-
-  _valueChanged(ev) {
-    if (!this._config || !this.hass) return;
-    
-    const target = ev.target;
-    const key = target.configValue || this._currentConfigValue; 
-    
-    let value;
-    if (target.tagName === 'HA-SWITCH') {
-        value = target.checked;
-    } else if (ev.detail && 'value' in ev.detail) {
-        value = ev.detail.value;
-    } else {
-        value = target.value;
-    }
-    
-    if (value === null || value === undefined) {
-        value = "";
+    static get properties() {
+        return {
+            hass: {},
+            _config: { state: true },
+            _subView: { state: true } // Controls which sub-page is open (null = main)
+        };
     }
 
-    if (key) {
-        const entityKeys = [
-            'solar', 'grid', 'grid_export', 
-            'battery', 'battery_soc', 
-            'consumer_1', 'consumer_2', 'consumer_3'
-        ];
+    setConfig(config) {
+        this._config = config;
+    }
 
-        let newConfig = { ...this._config };
+    _localize(key) {
+        const lang = this.hass && this.hass.language ? this.hass.language : 'en';
+        const dict = editorTranslations[lang] || editorTranslations['en'];
+        return dict[key] || editorTranslations['en'][key] || key;
+    }
 
-        if (entityKeys.includes(key)) {
-            const currentEntities = newConfig.entities || {};
-            const newEntities = { ...currentEntities, [key]: value };
-            newConfig.entities = newEntities;
+    _valueChanged(ev) {
+        if (!this._config || !this.hass) return;
+
+        const target = ev.target;
+        const key = target.configValue || this._currentConfigValue;
+
+        let value;
+        if (target.tagName === 'HA-SWITCH') {
+            value = target.checked;
+        } else if (ev.detail && 'value' in ev.detail) {
+            value = ev.detail.value;
         } else {
-            newConfig[key] = value;
-            
-            if (key === 'show_comet_tail' && value === true) {
-                newConfig.show_dashed_line = false;
-            }
-            if (key === 'show_dashed_line' && value === true) {
-                newConfig.show_comet_tail = false;
-            }
+            value = target.value;
         }
 
-        this._config = newConfig;
-        fireEvent(this, "config-changed", { config: this._config });
+        if (value === null || value === undefined) {
+            value = "";
+        }
+
+        if (key) {
+            const entityKeys = [
+                'solar', 'grid', 'grid_export',
+                'battery', 'battery_soc',
+                'house',
+                'consumer_1', 'consumer_2', 'consumer_3'
+            ];
+
+            let newConfig = { ...this._config };
+
+            if (entityKeys.includes(key)) {
+                const currentEntities = newConfig.entities || {};
+                const newEntities = { ...currentEntities, [key]: value };
+                newConfig.entities = newEntities;
+            } else {
+                newConfig[key] = value;
+
+                if (key === 'show_comet_tail' && value === true) {
+                    newConfig.show_dashed_line = false;
+                }
+                if (key === 'show_dashed_line' && value === true) {
+                    newConfig.show_comet_tail = false;
+                }
+            }
+
+            this._config = newConfig;
+            fireEvent(this, "config-changed", { config: this._config });
+        }
     }
-  }
 
-  _goSubView(view) {
-      this._subView = view;
-  }
+    _goSubView(view) {
+        this._subView = view;
+    }
 
-  _goBack() {
-      this._subView = null;
-  }
+    _goBack() {
+        this._subView = null;
+    }
 
-  static get styles() {
-    return css`
+    static get styles() {
+        return css`
       .card-config {
         display: flex;
         flex-direction: column;
@@ -241,12 +257,12 @@ class PowerFluxCardEditor extends LitElement {
           margin: 10px 0;
       }
     `;
-  }
+    }
 
-  // --- SUBVIEW RENDERING ---
+    // --- SUBVIEW RENDERING ---
 
-  _renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
                 <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
@@ -303,10 +319,10 @@ class PowerFluxCardEditor extends LitElement {
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
       `;
-  }
+    }
 
-  _renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
                 <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
@@ -372,10 +388,10 @@ class PowerFluxCardEditor extends LitElement {
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
       `;
-  }
+    }
 
-  _renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+    _renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
                 <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
@@ -440,16 +456,40 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
-      `;
-  }
 
-  _renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
-      return html`
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.invert_battery === true} 
+                .configValue=${'invert_battery'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.invert_battery')}</div>
+        </div>
+      `;
+    }
+
+    _renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema) {
+        return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
                 <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
             </div>
             <h2>${this._localize('editor.consumers_section')}</h2>
+        </div>
+
+        <div class="consumer-group">
+            <div class="consumer-title">🏠 Gesamthausverbrauch (Optional)</div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${entities.house || ""}
+                .configValue=${'house'}
+                .label=${'Sensor für Hausverbrauch (Optional)'}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+             <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+                Wird benötigt, damit das Haus-Icon anklickbar ist.
+            </div>
         </div>
 
         <div class="consumer-group">
@@ -542,28 +582,28 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
         </div>
       `;
-  }
-
-  render() {
-    if (!this.hass || !this._config) {
-      return html``;
     }
 
-    const entities = this._config.entities || {};
+    render() {
+        if (!this.hass || !this._config) {
+            return html``;
+        }
 
-    const entitySelectorSchema = { entity: { domain: ["sensor", "input_number"] } };
-    const textSelectorSchema = { text: {} };
-    const iconSelectorSchema = { icon: {} };
+        const entities = this._config.entities || {};
 
-    // SUBVIEW ROUTING
-    if (this._subView === 'solar') return this._renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'grid') return this._renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'battery') return this._renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
-    if (this._subView === 'consumers') return this._renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        const entitySelectorSchema = { entity: { domain: ["sensor", "input_number"] } };
+        const textSelectorSchema = { text: {} };
+        const iconSelectorSchema = { icon: {} };
+
+        // SUBVIEW ROUTING
+        if (this._subView === 'solar') return this._renderSolarView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'grid') return this._renderGridView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'battery') return this._renderBatteryView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
+        if (this._subView === 'consumers') return this._renderConsumersView(entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema);
 
 
-    // MAIN MENU VIEW
-    return html`
+        // MAIN MENU VIEW
+        return html`
       <div class="card-config">
         
         <div class="section-title">${this._localize('editor.main_title')}</div>
@@ -675,96 +715,120 @@ class PowerFluxCardEditor extends LitElement {
 		
       </div>
     `;
-  }
+    }
 }
 
 customElements.define("power-flux-card-editor", PowerFluxCardEditor);
 
 
+
+
+
+
 console.log(
-  "%c⚡ Power-Flux-Card v_2.0 ready",
-  "background: #2ecc71; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
+  "%c⚡ Power Flux Card v_2.1 ready",
+  "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
-class PowerFluxCard extends LitElement {
-  
-  static get properties() {
-    return {
-      hass: {},
-      config: {},
-      _cardWidth: { state: true },
-    };
-  }
+(function () {
+  const cardTranslations = {
+    "en": lang_en.card,
+    "de": lang_de.card
+  };
 
-  _localize(key) {
-    const lang = this.hass && this.hass.language ? this.hass.language : 'en';
-    const dict = cardTranslations[lang] || cardTranslations['en'];
-    return dict[key] || cardTranslations['en'][key] || key;
-  }
+  const LitElement = customElements.get("ha-lit-element") || Object.getPrototypeOf(customElements.get("home-assistant-main"));
+  const html = LitElement.prototype.html;
+  const css = LitElement.prototype.css;
 
-  static async getConfigElement() {
-    return document.createElement("power-flux-card-editor");
-  }
-
-  static getStubConfig() {
-    return {
-      zoom: 0.9,
-      compact_view: false,
-      show_donut_border: false,
-      show_neon_glow: true,
-      show_comet_tail: false,
-      show_dashed_line: false,
-      show_tinted_background: false,
-      hide_inactive_flows: true,
-      show_flow_rate_solar: true,
-      show_flow_rate_grid: true,
-      show_flow_rate_battery: true,
-      show_label_solar: false,
-      show_label_grid: false,
-      show_label_battery: false,
-      show_label_house: false,
-      use_colored_values: false,
-      hide_consumer_icons: false,
-      entities: {
-        solar: "",
-        grid: "",
-        grid_export: "",
-        battery: "",
-        battery_soc: "",
-        consumer_1: "",
-        consumer_2: "",
-        consumer_3: ""
-      }
-    };
-  }
-
-  setConfig(config) {
-    if (!config.entities) {
-       // Init allow
+  class PowerFluxCard extends LitElement {
+    static get properties() {
+      return {
+        hass: {},
+        config: {},
+        _cardWidth: { state: true },
+      };
     }
-    this.config = config;
-  }
 
-  firstUpdated() {
-    this._resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0) {
-          this._cardWidth = entry.contentRect.width;
+    _localize(key) {
+      const lang = this.hass && this.hass.language ? this.hass.language : 'en';
+      const dict = cardTranslations[lang] || cardTranslations['en'];
+      return dict[key] || cardTranslations['en'][key] || key;
+    }
+
+    static async getConfigElement() {
+      return document.createElement("power-flux-card-editor");
+    }
+
+    static getStubConfig() {
+      return {
+        zoom: 0.9,
+        compact_view: false,
+        show_donut_border: false,
+        show_neon_glow: true,
+        show_comet_tail: false,
+        show_dashed_line: false,
+        show_tinted_background: false,
+        hide_inactive_flows: true,
+        show_flow_rate_solar: true,
+        show_flow_rate_grid: true,
+        show_flow_rate_battery: true,
+        show_label_solar: false,
+        show_label_grid: false,
+        show_label_battery: false,
+        show_label_house: false,
+        use_colored_values: false,
+        hide_consumer_icons: false,
+        entities: {
+          solar: "",
+          grid: "",
+          grid_export: "",
+          battery: "",
+          battery_soc: "",
+          house: "",
+          consumer_1: "",
+          consumer_2: "",
+          consumer_3: ""
         }
-      }
-    });
-    this._resizeObserver.observe(this);
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    if (this._resizeObserver) {
-      this._resizeObserver.disconnect();
+      };
     }
-  }
 
-  static get styles() {
-    return css`
+    _handleClick(entityId) {
+      if (!entityId) return;
+      const event = new Event("hass-more-info", {
+        bubbles: true,
+        composed: true,
+      });
+      event.detail = { entityId };
+      this.dispatchEvent(event);
+    }
+
+    setConfig(config) {
+      if (!config.entities) {
+        // Init allow
+      }
+      this.config = config;
+    }
+
+    firstUpdated() {
+      this._resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0) {
+            this._cardWidth = entry.contentRect.width;
+          }
+        }
+      });
+      this._resizeObserver.observe(this);
+    }
+
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      if (this._resizeObserver) {
+        this._resizeObserver.disconnect();
+      }
+    }
+
+    static get styles() {
+      return css`
       :host {
         display: block;
         --neon-yellow: #ffdd00;
@@ -948,7 +1012,7 @@ class PowerFluxCard extends LitElement {
       .node-c2 { top: 370px; left: 165px; }
       .node-c3 { top: 370px; left: 325px; }
 
-      svg { position: absolute; top: 7; left: 25; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+      svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
       
       .bg-path { fill: none; stroke-width: 6; transition: opacity 0.3s ease; }
       .bg-solar { stroke: var(--neon-yellow); }
@@ -979,53 +1043,53 @@ class PowerFluxCard extends LitElement {
       .text-export { fill: var(--neon-red); }
       .text-battery { fill: var(--neon-green); }
     `;
-  }
+    }
 
-  // --- SVG ICON RENDERER ---
-  _renderIcon(type, val = 0, colorOverride = null) {
+    // --- SVG ICON RENDERER ---
+    _renderIcon(type, val = 0, colorOverride = null) {
       if (type === 'solar') {
-          const animate = Math.round(val) > 0 ? 'spin-slow' : '';
-          const color = colorOverride || 'var(--neon-yellow)';
-          return html`<svg class="icon-svg ${animate}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        const animate = Math.round(val) > 0 ? 'spin-slow' : '';
+        const color = colorOverride || 'var(--neon-yellow)';
+        return html`<svg class="icon-svg ${animate}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
       }
       if (type === 'grid') {
-          const animate = Math.round(val) > 0 ? 'pulse' : '';
-          const color = colorOverride || 'var(--neon-blue)';
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L12 22"></path><path d="M5 8L19 8"></path><path d="M4 14L20 14"></path><path d="M2 22L22 22"></path><circle class="${animate}" cx="12" cy="4" r="4" fill="${color}" stroke="none"></circle></svg>`;
+        const animate = Math.round(val) > 0 ? 'pulse' : '';
+        const color = colorOverride || 'var(--neon-blue)';
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L12 22"></path><path d="M5 8L19 8"></path><path d="M4 14L20 14"></path><path d="M2 22L22 22"></path><circle class="${animate}" cx="12" cy="4" r="4" fill="${color}" stroke="none"></circle></svg>`;
       }
       if (type === 'battery') {
-          const soc = Math.min(Math.max(val, 0), 100) / 100;
-          const rectHeight = 14 * soc;
-          const rectY = 18 - rectHeight;
-          const rectColor = soc > 0.2 ? 'var(--neon-green)' : 'var(--neon-red)'; 
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" ry="2"></rect><line x1="10" y1="2" x2="14" y2="2"></line><rect x="7" y="${rectY}" width="10" height="${rectHeight}" fill="${rectColor}" stroke="none"></rect></svg>`;
+        const soc = Math.min(Math.max(val, 0), 100) / 100;
+        const rectHeight = 14 * soc;
+        const rectY = 18 - rectHeight;
+        const rectColor = soc > 0.2 ? 'var(--neon-green)' : 'var(--neon-red)';
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" ry="2"></rect><line x1="10" y1="2" x2="14" y2="2"></line><rect x="7" y="${rectY}" width="10" height="${rectHeight}" fill="${rectColor}" stroke="none"></rect></svg>`;
       }
       if (type === 'house') {
-          const strokeColor = colorOverride || 'var(--neon-pink)';
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+        const strokeColor = colorOverride || 'var(--neon-pink)';
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
       }
       if (type === 'car') {
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M14 17h-5"></path></svg>`;
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M14 17h-5"></path></svg>`;
       }
       if (type === 'heater') {
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a4 4 0 0 0 4-4V8a4 4 0 0 0-8 0v8a4 4 0 0 0 4 4z"></path><path class="float" style="animation-delay: 0s;" d="M8 4c0-1.5 1-2 2-2s2 .5 2 2"></path><path class="float" style="animation-delay: 0.5s;" d="M14 4c0-1.5 1-2 2-2s2 .5 2 2"></path></svg>`;
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a4 4 0 0 0 4-4V8a4 4 0 0 0-8 0v8a4 4 0 0 0 4 4z"></path><path class="float" style="animation-delay: 0s;" d="M8 4c0-1.5 1-2 2-2s2 .5 2 2"></path><path class="float" style="animation-delay: 0.5s;" d="M14 4c0-1.5 1-2 2-2s2 .5 2 2"></path></svg>`;
       }
       if (type === 'pool') {
-          return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path class="float" d="M2 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M12 2v6"></path><path d="M9 5h6"></path></svg>`;
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path class="float" d="M2 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M12 2v6"></path><path d="M9 5h6"></path></svg>`;
       }
       return html``;
-  }
+    }
 
-  _formatPower(val) {
+    _formatPower(val) {
       if (val === 0) return "0";
       if (Math.abs(val) >= 1000) {
-          return (val / 1000).toFixed(1) + " kW";
+        return (val / 1000).toFixed(1) + " kW";
       }
       return Math.round(val) + " W";
-  }
+    }
 
-  // --- DOM NODE SVG GENERATOR ---
-  _renderSVGPath(d, color) {
+    // --- DOM NODE SVG GENERATOR ---
+    _renderSVGPath(d, color) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
       path.setAttribute("d", d);
       path.setAttribute("class", "bracket-line");
@@ -1035,29 +1099,29 @@ class PowerFluxCard extends LitElement {
       path.style.stroke = color;
       path.style.fill = "none";
       return path;
-  }
+    }
 
-  // --- SQUARE BRACKET GENERATOR ---
-  _createBracketPath(startPx, widthPx, direction) {
+    // --- SQUARE BRACKET GENERATOR ---
+    _createBracketPath(startPx, widthPx, direction) {
       if (widthPx < 5) return "";
-      
-      const r = 5; 
+
+      const r = 5;
       const startX = startPx;
       const endX = startPx + widthPx;
-      
+
       let yBase, yLine;
-      
+
       if (direction === 'down') {
-          yBase = 24; 
-          yLine = 4;  
+        yBase = 24;
+        yLine = 4;
       } else {
-          yBase = 0; 
-          yLine = 20; 
+        yBase = 0;
+        yLine = 20;
       }
 
       const height = Math.abs(yBase - yLine);
       const rEff = Math.min(r, height / 2, widthPx / 2);
-      
+
       const yCorner = direction === 'down' ? yLine + rEff : yLine - rEff;
 
       return `
@@ -1068,20 +1132,23 @@ class PowerFluxCard extends LitElement {
         Q ${endX} ${yLine} ${endX} ${yCorner} 
         L ${endX} ${yBase}
       `;
-  }
+    }
 
-  // --- RENDER COMPACT VIEW ---
-  _renderCompactView(entities) {
+    // --- RENDER COMPACT VIEW ---
+    _renderCompactView(entities) {
       // 1. Get Values
       const getVal = (entity) => {
-          const state = this.hass.states[entity];
-          return state ? parseFloat(state.state) || 0 : 0;
+        const state = this.hass.states[entity];
+        return state ? parseFloat(state.state) || 0 : 0;
       };
 
       const solar = entities.solar ? Math.max(0, getVal(entities.solar)) : 0;
       const gridMain = entities.grid ? getVal(entities.grid) : 0;
       const gridExportSensor = entities.grid_export ? getVal(entities.grid_export) : 0;
-      const battery = entities.battery ? getVal(entities.battery) : 0;
+      let battery = entities.battery ? getVal(entities.battery) : 0;
+      if (this.config.invert_battery) {
+        battery *= -1;
+      }
       const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0; // EV Value
 
       // 2. Logic Calculation
@@ -1089,11 +1156,11 @@ class PowerFluxCard extends LitElement {
       let gridExport = 0;
 
       if (entities.grid_export && entities.grid_export !== "") {
-          gridImport = gridMain > 0 ? gridMain : 0;
-          gridExport = Math.abs(gridExportSensor);
+        gridImport = gridMain > 0 ? gridMain : 0;
+        gridExport = Math.abs(gridExportSensor);
       } else {
-          gridImport = gridMain > 0 ? gridMain : 0;
-          gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
+        gridImport = gridMain > 0 ? gridMain : 0;
+        gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
       }
 
       const batteryCharge = battery > 0 ? battery : 0;
@@ -1103,44 +1170,44 @@ class PowerFluxCard extends LitElement {
       let gridToBatt = 0;
 
       if (batteryCharge > 0) {
-          if (solar >= batteryCharge) {
-              solarToBatt = batteryCharge;
-              gridToBatt = 0;
-          } else {
-              solarToBatt = solar;
-              gridToBatt = batteryCharge - solar;
-          }
+        if (solar >= batteryCharge) {
+          solarToBatt = batteryCharge;
+          gridToBatt = 0;
+        } else {
+          solarToBatt = solar;
+          gridToBatt = batteryCharge - solar;
+        }
       }
 
       const solarTotalToCons = Math.max(0, solar - solarToBatt - gridExport);
       const gridTotalToCons = Math.max(0, gridImport - gridToBatt);
       const battTotalToCons = batteryDischarge;
-      
+
       const totalCons = solarTotalToCons + gridTotalToCons + battTotalToCons;
-      
+
       // Calculate Splits
       let evPower = 0;
       let housePower = totalCons;
-      
+
       if (c1Val > 0 && totalCons > 0) {
-          evPower = Math.min(c1Val, totalCons);
-          housePower = totalCons - evPower;
+        evPower = Math.min(c1Val, totalCons);
+        housePower = totalCons - evPower;
       }
-      
+
       // Calculate Total Bar Width (Flux)
       // The Bar represents: Battery Discharge + Solar + Grid Import
       // This MUST equal: House + EV + Export + Battery Charge
-      
+
       // SOURCES (for Bar Segments)
       const srcBattery = batteryDischarge;
-      const srcSolar   = solar; // Solar includes Export + Charge + Cons
-      const srcGrid    = gridImport;
-      
+      const srcSolar = solar; // Solar includes Export + Charge + Cons
+      const srcGrid = gridImport;
+
       const totalFlux = srcBattery + srcSolar + srcGrid;
-      
+
       // DESTINATIONS (for Bottom Brackets)
-      const destHouse  = housePower;
-      const destEV     = evPower;
+      const destHouse = housePower;
+      const destEV = evPower;
       const destExport = gridExport;
       // Note: Battery Charge is also a destination (internal flow), but usually not bracketed if we only want "Consumers"
       // If we don't bracket Charge, there will be a gap. We can accept that or add a Charge bracket.
@@ -1148,10 +1215,10 @@ class PowerFluxCard extends LitElement {
 
       const threshold = 0.1;
       const availableWidth = (this._cardWidth && this._cardWidth > 0) ? this._cardWidth : (this.offsetWidth || 400);
-      const fullWidth = availableWidth - 40; 
+      const fullWidth = availableWidth - 40;
 
       if (totalFlux <= threshold) {
-          return html`<ha-card><div class="compact-container">Waiting for data...</div></ha-card>`;
+        return html`<ha-card><div class="compact-container">Waiting for data...</div></ha-card>`;
       }
 
       // --- GENERATE BAR SEGMENTS (Aggregated by Source) ---
@@ -1159,36 +1226,37 @@ class PowerFluxCard extends LitElement {
       const barSegments = [];
       let currentX = 0;
 
-      const addSegment = (val, color, type, label) => {
-          if (val <= threshold) return;
-          const pct = val / totalFlux;
-          const width = pct * fullWidth;
-          barSegments.push({
-              val,
-              color,
-              widthPct: pct * 100,
-              widthPx: width,
-              startPx: currentX,
-              type,
-              label
-          });
-          currentX += width;
+      const addSegment = (val, color, type, label, entityId) => {
+        if (val <= threshold) return;
+        const pct = val / totalFlux;
+        const width = pct * fullWidth;
+        barSegments.push({
+          val,
+          color,
+          widthPct: pct * 100,
+          widthPx: width,
+          startPx: currentX,
+          type,
+          label,
+          entityId
+        });
+        currentX += width;
       }
 
-      addSegment(srcBattery, 'var(--neon-yellow)', 'battery', 'battery');
-      addSegment(srcSolar,   'var(--neon-green)',  'solar',   'solar');
-      addSegment(srcGrid,    'var(--grid-grey)',   'grid',    'grid');
+      addSegment(srcBattery, 'var(--neon-yellow)', 'battery', 'battery', entities.battery);
+      addSegment(srcSolar, 'var(--neon-green)', 'solar', 'solar', entities.solar);
+      addSegment(srcGrid, 'var(--grid-grey)', 'grid', 'grid', entities.grid);
 
       // --- GENERATE TOP BRACKETS (Based on Bar Segments) ---
       const topBrackets = barSegments.map(s => {
-          const path = this._createBracketPath(s.startPx, s.widthPx, 'down');
-          let icon = '';
-          let iconColor = '';
-          if (s.type === 'solar')   { icon = 'mdi:weather-sunny'; iconColor = 'var(--neon-green)'; }
-          if (s.type === 'grid')    { icon = 'mdi:transmission-tower'; iconColor = 'var(--grid-grey)'; }
-          if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--neon-yellow)'; }
-          
-          return { path, width: s.widthPx, center: s.startPx + (s.widthPx/2), icon, iconColor };
+        const path = this._createBracketPath(s.startPx, s.widthPx, 'down');
+        let icon = '';
+        let iconColor = '';
+        if (s.type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--neon-green)'; }
+        if (s.type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--grid-grey)'; }
+        if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--neon-yellow)'; }
+
+        return { path, width: s.widthPx, center: s.startPx + (s.widthPx / 2), icon, iconColor, val: s.val, entityId: s.entityId };
       });
 
       // --- GENERATE BOTTOM BRACKETS (Independent Calculation) ---
@@ -1196,32 +1264,36 @@ class PowerFluxCard extends LitElement {
       const bottomBrackets = [];
       let bottomX = 0;
 
-      const addBottomBracket = (val, type) => {
-          if (val <= threshold) return;
-          const pct = val / totalFlux;
-          const width = pct * fullWidth;
-          
-          let icon = '';
-          let iconColor = '';
-          
-          if (type === 'house')  { icon = 'mdi:home'; iconColor = 'var(--primary-text-color)'; }
-          if (type === 'car')    { icon = 'mdi:car-electric'; iconColor = '#a855f7'; }
-          if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-purple)'; }
+      const addBottomBracket = (val, type, entityId = null) => {
+        if (val <= threshold) return;
+        const pct = val / totalFlux;
+        const width = pct * fullWidth;
 
-          const path = this._createBracketPath(bottomX, width, 'up');
-          bottomBrackets.push({
-              path,
-              width: width,
-              center: bottomX + (width/2),
-              icon,
-              iconColor
-          });
-          bottomX += width;
+        let icon = '';
+        let iconColor = '';
+
+        if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--primary-text-color)'; }
+        if (type === 'car') { icon = 'mdi:car-electric'; iconColor = '#a855f7'; }
+        if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-purple)'; }
+        if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--neon-green)'; }
+
+        const path = this._createBracketPath(bottomX, width, 'up');
+        bottomBrackets.push({
+          path,
+          width: width,
+          center: bottomX + (width / 2),
+          icon,
+          iconColor,
+          val,
+          entityId
+        });
+        bottomX += width;
       };
 
-      addBottomBracket(destHouse, 'house');
-      addBottomBracket(destEV, 'car');
-      addBottomBracket(destExport, 'export');
+      addBottomBracket(destHouse, 'house', entities.house);
+      addBottomBracket(destEV, 'car', entities.consumer_1);
+      addBottomBracket(destExport, 'export', entities.grid_export || entities.grid);
+      addBottomBracket(batteryCharge, 'battery', entities.battery);
 
       // Note: If there is Battery Charging happening, bottomX will not reach fullWidth. 
       // This leaves a gap at the end (or between segments depending on logic), which is visually correct 
@@ -1236,7 +1308,10 @@ class PowerFluxCard extends LitElement {
                         ${topBrackets.map(b => this._renderSVGPath(b.path, b.iconColor))}
                     </svg>
                     ${topBrackets.map(b => b.width > 20 ? html`
-                    <div class="compact-icon-wrapper" style="left: ${b.center}px; transform: translateX(-50%); top: 4px;">
+                    <div class="compact-icon-wrapper" 
+                         style="left: ${b.center}px; transform: translateX(-50%); top: 4px; cursor: ${b.entityId ? 'pointer' : 'default'};"
+                         title="${this._formatPower(b.val)}"
+                         @click=${() => b.entityId && this._handleClick(b.entityId)}>
                         <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor};"></ha-icon>
                     </div>` : '')}
                 </div>
@@ -1244,7 +1319,10 @@ class PowerFluxCard extends LitElement {
                 <!-- MAIN BAR -->
                 <div class="compact-bar-wrapper">
                     ${barSegments.map(s => html`
-                        <div class="bar-segment" style="width: ${s.widthPct}%; background: ${s.color}; color: ${s.color === 'var(--export-purple)' ? 'white' : 'black'};">
+                        <div class="bar-segment" 
+                             style="width: ${s.widthPct}%; background: ${s.color}; color: ${s.color === 'var(--export-purple)' ? 'white' : 'black'}; cursor: ${s.entityId ? 'pointer' : 'default'};"
+                             title="${this._formatPower(s.val)}"
+                             @click=${() => s.entityId && this._handleClick(s.entityId)}>
                             ${s.widthPx > 35 ? this._formatPower(s.val) : ''}
                         </div>
                     `)}
@@ -1256,310 +1334,316 @@ class PowerFluxCard extends LitElement {
                         ${bottomBrackets.map(b => this._renderSVGPath(b.path, b.iconColor))}
                     </svg>
                     ${bottomBrackets.map(b => b.width > 20 ? html`
-                    <div class="compact-icon-wrapper" style="left: ${b.center}px; transform: translateX(-50%); top: -3px;">
+                    <div class="compact-icon-wrapper" 
+                         style="left: ${b.center}px; transform: translateX(-50%); top: -3px; cursor: ${b.entityId ? 'pointer' : 'default'};"
+                         title="${this._formatPower(b.val)}"
+                         @click=${() => b.entityId && this._handleClick(b.entityId)}>
                         <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor};"></ha-icon>
                     </div>` : '')}
                 </div>
             </div>
         </ha-card>
       `;
-  }
+    }
 
-  // --- RENDER STANDARD VIEW ---
-  _renderStandardView(entities) {
-    // FIX: Default to hidden unless explicitly set to false
-    const hideInactive = this.config.hide_inactive_flows !== false;
-    
-    const globalFlowRate = this.config.show_flow_rates !== false;
-    
-    // FLOW RATE TOGGLES
-    const showFlowSolar = this.config.show_flow_rate_solar !== undefined ? this.config.show_flow_rate_solar : globalFlowRate;
-    const showFlowGrid = this.config.show_flow_rate_grid !== undefined ? this.config.show_flow_rate_grid : globalFlowRate;
-    const showFlowBattery = this.config.show_flow_rate_battery !== undefined ? this.config.show_flow_rate_battery : globalFlowRate;
+    // --- RENDER STANDARD VIEW ---
+    _renderStandardView(entities) {
+      // FIX: Default to hidden unless explicitly set to false
+      const hideInactive = this.config.hide_inactive_flows !== false;
 
-    // LABEL TOGGLES
-    const showLabelSolar = this.config.show_label_solar === true;
-    const showLabelGrid = this.config.show_label_grid === true;
-    const showLabelBattery = this.config.show_label_battery === true;
-    const showLabelHouse = this.config.show_label_house === true;
+      const globalFlowRate = this.config.show_flow_rates !== false;
 
-    const useColoredValues = this.config.use_colored_values === true;
-    const showDonut = this.config.show_donut_border === true;
-    const showTail = this.config.show_comet_tail === true;
-    const showDashedLine = this.config.show_dashed_line === true;
-    const showTint = this.config.show_tinted_background === true;
-    const hideConsumerIcons = this.config.hide_consumer_icons === true;
-    const showNeonGlow = this.config.show_neon_glow !== false; 
-    
-    // CUSTOM LABELS
-    const labelSolarText = this.config.solar_label || this._localize('card.label_solar');
-    const labelGridText = this.config.grid_label || this._localize('card.label_import'); 
-    const labelBatteryText = this.config.battery_label || (entities.battery && this.hass.states[entities.battery] && this.hass.states[entities.battery].state > 0 ? '+' : '-') + " " + this._localize('card.label_battery');
-    const labelHouseText = this.config.house_label || this._localize('card.label_house');
+      // FLOW RATE TOGGLES
+      const showFlowSolar = this.config.show_flow_rate_solar !== undefined ? this.config.show_flow_rate_solar : globalFlowRate;
+      const showFlowGrid = this.config.show_flow_rate_grid !== undefined ? this.config.show_flow_rate_grid : globalFlowRate;
+      const showFlowBattery = this.config.show_flow_rate_battery !== undefined ? this.config.show_flow_rate_battery : globalFlowRate;
 
-    // CUSTOM ICONS
-    const iconSolar = this.config.solar_icon;
-    const iconGrid = this.config.grid_icon;
-    const iconBattery = this.config.battery_icon;
+      // LABEL TOGGLES
+      const showLabelSolar = this.config.show_label_solar === true;
+      const showLabelGrid = this.config.show_label_grid === true;
+      const showLabelBattery = this.config.show_label_battery === true;
+      const showLabelHouse = this.config.show_label_house === true;
 
-    // Determine existence of main entities
-    const hasSolar = !!(entities.solar && entities.solar !== "");
-    const hasGrid = !!(entities.grid && entities.grid !== "");
-    const hasBattery = !!(entities.battery && entities.battery !== "");
-    
-    const styleSolar = hasSolar ? '' : 'display: none;';
-    const styleSolarBatt = (hasSolar && hasBattery) ? '' : 'display: none;';
-    const styleGrid = hasGrid ? '' : 'display: none;';
-    const styleGridBatt = (hasGrid && hasBattery) ? '' : 'display: none;';
-    const styleBattery = hasBattery ? '' : 'display: none;';
+      const useColoredValues = this.config.use_colored_values === true;
+      const showDonut = this.config.show_donut_border === true;
+      const showTail = this.config.show_comet_tail === true;
+      const showDashedLine = this.config.show_dashed_line === true;
+      const showTint = this.config.show_tinted_background === true;
+      const hideConsumerIcons = this.config.hide_consumer_icons === true;
+      const showNeonGlow = this.config.show_neon_glow !== false;
 
-    const textClass = showNeonGlow ? 'flow-text' : 'flow-text no-shadow';
+      // CUSTOM LABELS
+      const labelSolarText = this.config.solar_label || this._localize('card.label_solar');
+      const labelGridText = this.config.grid_label || this._localize('card.label_import');
+      const labelBatteryText = this.config.battery_label || (entities.battery && this.hass.states[entities.battery] && this.hass.states[entities.battery].state > 0 ? '+' : '-') + " " + this._localize('card.label_battery');
+      const labelHouseText = this.config.house_label || this._localize('card.label_house');
 
-    // Custom Labels for Consumers
-    const labelC1 = this.config.consumer_1_label || "E-Auto";
-    const labelC2 = this.config.consumer_2_label || "Heizung";
-    const labelC3 = this.config.consumer_3_label || "Pool";
+      // CUSTOM ICONS
+      const iconSolar = this.config.solar_icon;
+      const iconGrid = this.config.grid_icon;
+      const iconBattery = this.config.battery_icon;
 
-    const getVal = (entity) => {
-      const state = this.hass.states[entity];
-      return state ? parseFloat(state.state) || 0 : 0;
-    };
+      // Determine existence of main entities
+      const hasSolar = !!(entities.solar && entities.solar !== "");
+      const hasGrid = !!(entities.grid && entities.grid !== "");
+      const hasBattery = !!(entities.battery && entities.battery !== "");
 
-    const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0;
-    const c2Val = entities.consumer_2 ? getVal(entities.consumer_2) : 0;
-    const c3Val = entities.consumer_3 ? getVal(entities.consumer_3) : 0;
+      const styleSolar = hasSolar ? '' : 'display: none;';
+      const styleSolarBatt = (hasSolar && hasBattery) ? '' : 'display: none;';
+      const styleGrid = hasGrid ? '' : 'display: none;';
+      const styleGridBatt = (hasGrid && hasBattery) ? '' : 'display: none;';
+      const styleBattery = hasBattery ? '' : 'display: none;';
 
-    const showC1 = (entities.consumer_1 && Math.round(c1Val) > 0);
-    const showC2 = (entities.consumer_2 && Math.round(c2Val) > 0);
-    const showC3 = (entities.consumer_3 && Math.round(c3Val) > 0);
-    const anyBottomVisible = showC1 || showC2 || showC3;
+      const textClass = showNeonGlow ? 'flow-text' : 'flow-text no-shadow';
 
-    const solar = hasSolar ? getVal(entities.solar) : 0;
-    const gridMain = hasGrid ? getVal(entities.grid) : 0;
-    const gridExpSensor = (hasGrid && entities.grid_export) ? getVal(entities.grid_export) : 0;
-    const battery = hasBattery ? getVal(entities.battery) : 0;
-    const battSoc = (hasBattery && entities.battery_soc) ? getVal(entities.battery_soc) : 0;
+      // Custom Labels for Consumers
+      const labelC1 = this.config.consumer_1_label || "E-Auto";
+      const labelC2 = this.config.consumer_2_label || "Heizung";
+      const labelC3 = this.config.consumer_3_label || "Pool";
 
-    const solarVal = Math.max(0, solar);
-    
-    let gridImport = 0;
-    let gridExport = 0;
+      const getVal = (entity) => {
+        const state = this.hass.states[entity];
+        return state ? parseFloat(state.state) || 0 : 0;
+      };
 
-    if (hasGrid) {
+      const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0;
+      const c2Val = entities.consumer_2 ? getVal(entities.consumer_2) : 0;
+      const c3Val = entities.consumer_3 ? getVal(entities.consumer_3) : 0;
+
+      const showC1 = (entities.consumer_1 && Math.round(c1Val) > 0);
+      const showC2 = (entities.consumer_2 && Math.round(c2Val) > 0);
+      const showC3 = (entities.consumer_3 && Math.round(c3Val) > 0);
+      const anyBottomVisible = showC1 || showC2 || showC3;
+
+      const solar = hasSolar ? getVal(entities.solar) : 0;
+      const gridMain = hasGrid ? getVal(entities.grid) : 0;
+      const gridExpSensor = (hasGrid && entities.grid_export) ? getVal(entities.grid_export) : 0;
+      let battery = hasBattery ? getVal(entities.battery) : 0;
+      if (this.config.invert_battery) {
+        battery *= -1;
+      }
+      const battSoc = (hasBattery && entities.battery_soc) ? getVal(entities.battery_soc) : 0;
+
+      const solarVal = Math.max(0, solar);
+
+      let gridImport = 0;
+      let gridExport = 0;
+
+      if (hasGrid) {
         if (entities.grid_export && entities.grid_export !== "") {
-            gridImport = gridMain > 0 ? gridMain : 0;
-            gridExport = Math.abs(gridExpSensor);
+          gridImport = gridMain > 0 ? gridMain : 0;
+          gridExport = Math.abs(gridExpSensor);
         } else {
-            gridImport = gridMain > 0 ? gridMain : 0;
-            gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
+          gridImport = gridMain > 0 ? gridMain : 0;
+          gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
         }
-    }
+      }
 
-    const batteryCharge = battery > 0 ? battery : 0;
-    const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
+      const batteryCharge = battery > 0 ? battery : 0;
+      const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
 
-    let solarToBatt = 0;
-    let gridToBatt = 0;
+      let solarToBatt = 0;
+      let gridToBatt = 0;
 
-    if (hasBattery && batteryCharge > 0) {
+      if (hasBattery && batteryCharge > 0) {
         if (solarVal >= batteryCharge) {
-            solarToBatt = batteryCharge;
-            gridToBatt = 0;
+          solarToBatt = batteryCharge;
+          gridToBatt = 0;
         } else {
-            solarToBatt = solarVal; 
-            gridToBatt = batteryCharge - solarVal;
+          solarToBatt = solarVal;
+          gridToBatt = batteryCharge - solarVal;
         }
-    }
+      }
 
-    const solarToHouse = Math.max(0, solarVal - solarToBatt - gridExport);
-    const gridToHouse = Math.max(0, gridImport - gridToBatt);
-    const house = solarToHouse + gridToHouse + batteryDischarge;
+      const solarToHouse = Math.max(0, solarVal - solarToBatt - gridExport);
+      const gridToHouse = Math.max(0, gridImport - gridToBatt);
+      const house = solarToHouse + gridToHouse + batteryDischarge;
 
-    const isTopArcActive = (solarToBatt > 0);
-    const topShift = isTopArcActive ? 0 : 50; 
-    let baseHeight = anyBottomVisible ? 480 : 340;
-    const contentHeight = baseHeight - topShift; 
+      const isTopArcActive = (solarToBatt > 0);
+      const topShift = isTopArcActive ? 0 : 50;
+      let baseHeight = anyBottomVisible ? 480 : 340;
+      const contentHeight = baseHeight - topShift;
 
-    const designWidth = 420;
-    const availableWidth = this._cardWidth || designWidth;
-    let scale = availableWidth / designWidth;
-    const userZoom = this.config.zoom !== undefined ? this.config.zoom : 0.9;
-    scale = scale * userZoom;
+      const designWidth = 420;
+      const availableWidth = this._cardWidth || designWidth;
+      let scale = availableWidth / designWidth;
+      const userZoom = this.config.zoom !== undefined ? this.config.zoom : 0.9;
+      scale = scale * userZoom;
 
-    if (scale < 0.5) scale = 0.5;
-    if (scale > 1.5) scale = 1.5;
+      if (scale < 0.5) scale = 0.5;
+      if (scale > 1.5) scale = 1.5;
 
-    const finalCardHeightPx = contentHeight * scale;
+      const finalCardHeightPx = contentHeight * scale;
 
-    let houseGradientVal = '';
-    let houseTextCol = useColoredValues ? 'var(--neon-pink)' : ''; 
-    const tintClass = showTint ? 'tinted' : '';
-    const glowClass = showNeonGlow ? 'glow' : '';
-    
-    let houseDominantColor = 'var(--neon-pink)';
-    if (house > 0) {
+      let houseGradientVal = '';
+      let houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
+      const tintClass = showTint ? 'tinted' : '';
+      const glowClass = showNeonGlow ? 'glow' : '';
+
+      let houseDominantColor = 'var(--neon-pink)';
+      if (house > 0) {
         if (solarToHouse >= gridToHouse && solarToHouse >= batteryDischarge) {
-            houseDominantColor = 'var(--neon-yellow)';
+          houseDominantColor = 'var(--neon-yellow)';
         } else if (gridToHouse >= solarToHouse && gridToHouse >= batteryDischarge) {
-            houseDominantColor = 'var(--neon-blue)';
+          houseDominantColor = 'var(--neon-blue)';
         } else if (batteryDischarge >= solarToHouse && batteryDischarge >= gridToHouse) {
-            houseDominantColor = 'var(--neon-green)';
+          houseDominantColor = 'var(--neon-green)';
         }
-    }
+      }
 
-    if (showDonut) {
+      if (showDonut) {
         if (house > 0) {
-            const pctSolar = (solarToHouse / house) * 100;
-            const pctGrid = (gridToHouse / house) * 100;
-            const pctBatt = (batteryDischarge / house) * 100;
-            
-            let stops = [];
-            let current = 0;
-            if (pctSolar > 0) { stops.push(`var(--neon-yellow) ${current}% ${current + pctSolar}%`); current += pctSolar; }
-            if (pctGrid > 0) { stops.push(`var(--neon-blue) ${current}% ${current + pctGrid}%`); current += pctGrid; }
-            if (pctBatt > 0) { stops.push(`var(--neon-green) ${current}% ${current + pctBatt}%`); current += pctBatt; }
-            if (current < 99.9) { stops.push(`var(--neon-pink) ${current}% 100%`); }
-            
-            houseGradientVal = `conic-gradient(${stops.join(', ')})`;
+          const pctSolar = (solarToHouse / house) * 100;
+          const pctGrid = (gridToHouse / house) * 100;
+          const pctBatt = (batteryDischarge / house) * 100;
 
-            if (useColoredValues) {
-                const maxVal = Math.max(solarToHouse, gridToHouse, batteryDischarge);
-                if (maxVal > 0) {
-                    if (maxVal === solarToHouse) houseTextCol = 'var(--neon-yellow)';
-                    else if (maxVal === gridToHouse) houseTextCol = 'var(--neon-blue)';
-                    else if (maxVal === batteryDischarge) houseTextCol = 'var(--neon-green)';
-                } else {
-                    houseTextCol = 'var(--neon-pink)';
-                }
+          let stops = [];
+          let current = 0;
+          if (pctSolar > 0) { stops.push(`var(--neon-yellow) ${current}% ${current + pctSolar}%`); current += pctSolar; }
+          if (pctGrid > 0) { stops.push(`var(--neon-blue) ${current}% ${current + pctGrid}%`); current += pctGrid; }
+          if (pctBatt > 0) { stops.push(`var(--neon-green) ${current}% ${current + pctBatt}%`); current += pctBatt; }
+          if (current < 99.9) { stops.push(`var(--neon-pink) ${current}% 100%`); }
+
+          houseGradientVal = `conic-gradient(${stops.join(', ')})`;
+
+          if (useColoredValues) {
+            const maxVal = Math.max(solarToHouse, gridToHouse, batteryDischarge);
+            if (maxVal > 0) {
+              if (maxVal === solarToHouse) houseTextCol = 'var(--neon-yellow)';
+              else if (maxVal === gridToHouse) houseTextCol = 'var(--neon-blue)';
+              else if (maxVal === batteryDischarge) houseTextCol = 'var(--neon-green)';
+            } else {
+              houseTextCol = 'var(--neon-pink)';
             }
+          }
         } else {
-            houseGradientVal = `var(--neon-pink)`;
-            houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
+          houseGradientVal = `var(--neon-pink)`;
+          houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
         }
-    } else {
+      } else {
         houseTextCol = useColoredValues ? 'var(--neon-pink)' : '';
-    }
+      }
 
-    const houseTintStyle = showTint 
-        ? `background: color-mix(in srgb, ${houseDominantColor}, transparent 85%);` 
+      const houseTintStyle = showTint
+        ? `background: color-mix(in srgb, ${houseDominantColor}, transparent 85%);`
         : '';
-    
-    const houseGlowStyle = showNeonGlow
+
+      const houseGlowStyle = showNeonGlow
         ? `box-shadow: 0 0 15px color-mix(in srgb, ${houseDominantColor}, transparent 60%);`
         : `box-shadow: none;`;
 
-    const houseBubbleStyle = `${showDonut ? `--house-gradient: ${houseGradientVal};` : ''} ${houseTintStyle} ${houseGlowStyle}`;
+      const houseBubbleStyle = `${showDonut ? `--house-gradient: ${houseGradientVal};` : ''} ${houseTintStyle} ${houseGlowStyle}`;
 
-    const isSolarActive = Math.round(solarVal) > 0;
-    const isGridActive = Math.round(gridImport) > 0;
+      const isSolarActive = Math.round(solarVal) > 0;
+      const isGridActive = Math.round(gridImport) > 0;
 
-    const solarColor = isSolarActive ? 'var(--neon-yellow)' : 'var(--secondary-text-color)';
-    const gridColor = isGridActive ? 'var(--neon-blue)' : 'var(--secondary-text-color)';
+      const solarColor = isSolarActive ? 'var(--neon-yellow)' : 'var(--secondary-text-color)';
+      const gridColor = isGridActive ? 'var(--neon-blue)' : 'var(--secondary-text-color)';
 
-    const getAnimStyle = (val) => {
-        if (val <= 1) return "opacity: 0;"; 
-        const userMinDuration = 7; 
-        const userMaxDuration = 11; 
-        const userFactor = 20000; 
-        let duration = userFactor / val; 
+      const getAnimStyle = (val) => {
+        if (val <= 1) return "opacity: 0;";
+        const userMinDuration = 7;
+        const userMaxDuration = 11;
+        const userFactor = 20000;
+        let duration = userFactor / val;
         duration = Math.max(userMinDuration, Math.min(userMaxDuration, duration));
-        
+
         // Adjust speed for dashed line (Factor to slow down: 5x)
         if (showDashedLine) {
-            duration = duration * 5;
+          duration = duration * 5;
         }
-        
+
         return `opacity: 1; animation-duration: ${duration}s;`;
-    };
+      };
 
-    const getPipeStyle = (val) => {
-        if (!hideInactive) return "opacity: 0.2;"; 
-        return val > 1 ? "opacity: 0.2;" : "opacity: 0;"; 
-    };
+      const getPipeStyle = (val) => {
+        if (!hideInactive) return "opacity: 0.2;";
+        return val > 1 ? "opacity: 0.2;" : "opacity: 0;";
+      };
 
-    const getTextStyle = (val, type) => {
+      const getTextStyle = (val, type) => {
         let isVisible = false;
         if (type === 'solar') isVisible = showFlowSolar;
         else if (type === 'grid') isVisible = showFlowGrid;
         else if (type === 'battery') isVisible = showFlowBattery;
-        
-        if (!isVisible) return "display: none;"; 
-        return val > 5 ? "opacity: 1;" : "opacity: 0;"; 
-    };
 
-    const getColorStyle = (colorVar) => {
+        if (!isVisible) return "display: none;";
+        return val > 5 ? "opacity: 1;" : "opacity: 0;";
+      };
+
+      const getColorStyle = (colorVar) => {
         return useColoredValues ? `color: var(${colorVar});` : '';
-    };
-    const getConsumerColorStyle = (hex) => {
+      };
+      const getConsumerColorStyle = (hex) => {
         return useColoredValues ? `color: ${hex};` : '';
-    }
+      }
 
-    const renderLabel = (text, isVisible) => {
+      const renderLabel = (text, isVisible) => {
         if (!isVisible) return html``;
         return html`<div class="sub">${text}</div>`;
-    };
+      };
 
-    const renderMainIcon = (type, val, customIcon, color = null) => {
+      const renderMainIcon = (type, val, customIcon, color = null) => {
         if (customIcon) {
-            const style = color ? `color: ${color};` : (type === 'solar' ? 'color: var(--neon-yellow);' : (type === 'grid' ? 'color: var(--neon-blue);' : (type === 'battery' ? 'color: var(--neon-green);' : '')));
-            return html`<ha-icon icon="${customIcon}" class="icon-custom" style="${style}"></ha-icon>`;
+          const style = color ? `color: ${color};` : (type === 'solar' ? 'color: var(--neon-yellow);' : (type === 'grid' ? 'color: var(--neon-blue);' : (type === 'battery' ? 'color: var(--neon-green);' : '')));
+          return html`<ha-icon icon="${customIcon}" class="icon-custom" style="${style}"></ha-icon>`;
         }
         return this._renderIcon(type, val, color);
-    };
+      };
 
-    const getCustomClass = (icon) => icon ? 'has-custom-icon' : '';
+      const getCustomClass = (icon) => icon ? 'has-custom-icon' : '';
 
-    const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
+      const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
         if (!isVisible) return html``;
-        
+
         const customIcon = this.config[`${configKey}_icon`];
         let iconContent;
 
         const isCustom = !hideConsumerIcons && !!customIcon;
-        const dynamicClass = isCustom ? 'has-custom-icon' : ''; 
+        const dynamicClass = isCustom ? 'has-custom-icon' : '';
 
         if (hideConsumerIcons) {
-             iconContent = html``;
+          iconContent = html``;
         } else if (customIcon) {
-             iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${hexColor};"></ha-icon>`;
+          iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${hexColor};"></ha-icon>`;
         } else {
-             iconContent = this._renderIcon(iconType, val);
+          iconContent = this._renderIcon(iconType, val);
         }
 
         return html`
-            <div class="bubble ${cssClass} node ${cssClass.replace('c','node-c')} ${tintClass} ${dynamicClass} ${glowClass}">
+            <div class="bubble ${cssClass} node ${cssClass.replace('c', 'node-c')} ${tintClass} ${dynamicClass} ${glowClass}">
                 ${iconContent}
                 ${renderLabel(label, true)}
                 <div class="value" style="${getConsumerColorStyle(hexColor)}">${this._formatPower(val)}</div>
             </div>
         `;
-    };
+      };
 
-    const getConsumerPipeStyle = (isActive, val) => {
+      const getConsumerPipeStyle = (isActive, val) => {
         if (!isActive) return "display: none;";
         return getPipeStyle(val);
-    };
-    
-    const getConsumerAnimStyle = (isActive, val) => {
+      };
+
+      const getConsumerAnimStyle = (isActive, val) => {
         if (!isActive) return "display: none;";
         return getAnimStyle(val);
-    };
+      };
 
-    const pathSolarHouse = "M 50 160 Q 50 265 165 265";
-    const pathSolarBatt  = "M 50 70 Q 210 -20 370 70"; 
-    const pathGridImport = "M 210 160 L 210 220";
-    const pathGridExport = "M 165 115 Q 130 145 95 115";
-    const pathGridToBatt = "M 255 115 Q 290 145 325 115"; 
-    const pathBattHouse  = "M 370 160 Q 370 265 255 265";
-    const pathHouseC1 = "M 165 265 Q 50 265 50 370"; 
-    const pathHouseC2 = "M 210 310 L 210 370";
-    const pathHouseC3 = "M 255 265 Q 370 265 370 370";
+      const pathSolarHouse = "M 50 160 Q 50 265 165 265";
+      const pathSolarBatt = "M 50 70 Q 210 -20 370 70";
+      const pathGridImport = "M 210 160 L 210 220";
+      const pathGridExport = "M 165 115 Q 130 145 95 115";
+      const pathGridToBatt = "M 255 115 Q 290 145 325 115";
+      const pathBattHouse = "M 370 160 Q 370 265 255 265";
+      const pathHouseC1 = "M 165 265 Q 50 265 50 370";
+      const pathHouseC2 = "M 210 310 L 210 370";
+      const pathHouseC3 = "M 255 265 Q 370 265 370 370";
 
-    const houseTextStyle = houseTextCol ? `color: ${houseTextCol};` : '';
-    const dashArrayVal = showTail ? '30 360' : (showDashedLine ? '13 13' : '0 380');
-    const strokeWidthVal = showDashedLine ? 4 : 8;
+      const houseTextStyle = houseTextCol ? `color: ${houseTextCol};` : '';
+      const dashArrayVal = showTail ? '30 360' : (showDashedLine ? '13 13' : '0 380');
+      const strokeWidthVal = showDashedLine ? 4 : 8;
 
-    return html`
+      return html`
       <ha-card style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
         
         <div class="scale-wrapper" style="transform: scale(${scale});">
@@ -1640,21 +1724,22 @@ class PowerFluxCard extends LitElement {
         </div>
       </ha-card>
     `;
-  }
+    }
 
-  render() {
-    if (!this.config || !this.hass) return html``;
-    
-    // SWITCH VIEW BASED ON CONFIG
-    if (this.config.compact_view === true) {
+    render() {
+      if (!this.config || !this.hass) return html``;
+
+      // SWITCH VIEW BASED ON CONFIG
+      if (this.config.compact_view === true) {
         return this._renderCompactView(this.config.entities || {});
-    } else {
+      } else {
         return this._renderStandardView(this.config.entities || {});
+      }
     }
   }
-}
 
-customElements.define("power-flux-card", PowerFluxCard);
+  customElements.define("power-flux-card", PowerFluxCard);
+})();
 
 window.customCards = window.customCards || [];
 window.customCards.push({
