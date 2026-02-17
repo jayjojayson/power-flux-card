@@ -25,7 +25,7 @@ const lang_de = {
     "editor.battery_soc_label": "Ladestand (%)",
     "editor.house_total_title": "🏠 Gesamtverbrauch (optional)",
     "editor.house_sensor_label": "Sensor für Hausverbrauch (optional)",
-    "editor.house_sensor_hint": "Wird benötigt, damit das Haus-Icon anklickbar ist.",
+    "editor.house_sensor_hint": "Wird benötigt, damit das Haus-Icon anklickbar ist (compact view).",
     "editor.consumer_1_title": "🚗 Links (Lila)",
     "editor.consumer_2_title": "♨️ Mitte (Orange)",
     "editor.consumer_3_title": "🏊 Rechts (Türkis)",
@@ -69,7 +69,7 @@ const lang_en = {
     "editor.battery_soc_label": "State of Charge (%)",
     "editor.house_total_title": "🏠 Total Consumption (optional)",
     "editor.house_sensor_label": "Sensor for House Consumption (optional)",
-    "editor.house_sensor_hint": "Required to make the house icon clickable.",
+    "editor.house_sensor_hint": "Required to make the house icon clickable (compact view).",
     "editor.consumer_1_title": "🚗 Left (Purple)",
     "editor.consumer_2_title": "♨️ Center (Orange)",
     "editor.consumer_3_title": "🏊 Right (Cyan)",
@@ -1483,7 +1483,7 @@ console.log(
       const house = solarToHouse + gridToHouse + batteryDischarge;
 
       const isTopArcActive = (solarToBatt > 0);
-      const topShift = isTopArcActive ? 0 : 50;
+      const topShift = (isTopArcActive || (!hideInactive && hasSolar && hasBattery)) ? 0 : 50;
       let baseHeight = anyBottomVisible ? 480 : 340;
       const contentHeight = baseHeight - topShift;
 
