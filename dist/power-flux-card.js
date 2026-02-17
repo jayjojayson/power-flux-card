@@ -21,6 +21,21 @@ const lang_de = {
     "editor.entity": "Entität (Watt)",
     "editor.label": "Beschriftung",
     "editor.icon": "Icon",
+    "editor.back": "Zurück",
+    "editor.battery_soc_label": "Ladestand (%)",
+    "editor.house_total_title": "🏠 Gesamtverbrauch (optional)",
+    "editor.house_sensor_label": "Sensor für Hausverbrauch (optional)",
+    "editor.house_sensor_hint": "Wird benötigt, damit das Haus-Icon anklickbar ist.",
+    "editor.consumer_1_title": "🚗 Links (Lila)",
+    "editor.consumer_2_title": "♨️ Mitte (Orange)",
+    "editor.consumer_3_title": "🏊 Rechts (Türkis)",
+    "editor.zoom_label": "🔍 Zoom (Standard View)",
+    "editor.neon_glow": "Neon Glow",
+    "editor.donut_chart": "Donut Chart (Grid/Haus)",
+    "editor.comet_tail": "Comet Tail Effect",
+    "editor.dashed_line": "Dashed Line Effect",
+    "editor.colored_values": "Farbige Textwerte",
+    "editor.hide_consumer_icons": "Icons unten ausblenden",
   },
   card: {
     "card.label_solar": "Solar",
@@ -50,6 +65,21 @@ const lang_en = {
     "editor.entity": "Entity (Watt)",
     "editor.label": "Label",
     "editor.icon": "Icon",
+    "editor.back": "Back",
+    "editor.battery_soc_label": "State of Charge (%)",
+    "editor.house_total_title": "🏠 Total Consumption (optional)",
+    "editor.house_sensor_label": "Sensor for House Consumption (optional)",
+    "editor.house_sensor_hint": "Required to make the house icon clickable.",
+    "editor.consumer_1_title": "🚗 Left (Purple)",
+    "editor.consumer_2_title": "♨️ Center (Orange)",
+    "editor.consumer_3_title": "🏊 Right (Cyan)",
+    "editor.zoom_label": "🔍 Zoom (Standard View)",
+    "editor.neon_glow": "Neon Glow",
+    "editor.donut_chart": "Donut Chart (Grid/House)",
+    "editor.comet_tail": "Comet Tail Effect",
+    "editor.dashed_line": "Dashed Line Effect",
+    "editor.colored_values": "Colored Text Values",
+    "editor.hide_consumer_icons": "Hide Consumer Icons",
   },
   card: {
     "card.label_solar": "Solar",
@@ -79,10 +109,6 @@ const editorTranslations = {
     "de": lang_de.editor
 };
 
-const cardTranslations = {
-    "en": lang_en.card,
-    "de": lang_de.card
-};
 
 const fireEvent = (node, type, detail, options) => {
     options = options || {};
@@ -265,7 +291,7 @@ class PowerFluxCardEditor extends LitElement {
         return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.solar_section')}</h2>
         </div>
@@ -303,7 +329,7 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_solar !== false} 
+                .checked=${this._config.show_label_solar === true} 
                 .configValue=${'show_label_solar'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -325,7 +351,7 @@ class PowerFluxCardEditor extends LitElement {
         return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.grid_section')}</h2>
         </div>
@@ -372,7 +398,7 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_grid !== false} 
+                .checked=${this._config.show_label_grid === true} 
                 .configValue=${'show_label_grid'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -394,7 +420,7 @@ class PowerFluxCardEditor extends LitElement {
         return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.battery_section')}</h2>
         </div>
@@ -413,7 +439,7 @@ class PowerFluxCardEditor extends LitElement {
             .selector=${entitySelectorSchema}
             .value=${entities.battery_soc}
             .configValue=${'battery_soc'}
-            .label=${"Ladestand (%)"}
+            .label=${this._localize('editor.battery_soc_label')}
             @value-changed=${this._valueChanged}
         ></ha-selector>
         
@@ -441,7 +467,7 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_battery !== false} 
+                .checked=${this._config.show_label_battery === true} 
                 .configValue=${'show_label_battery'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -472,28 +498,28 @@ class PowerFluxCardEditor extends LitElement {
         return html`
         <div class="header">
             <div class="back-btn" @click=${this._goBack}>
-                <ha-icon icon="mdi:arrow-left"></ha-icon> Zurück
+                <ha-icon icon="mdi:arrow-left"></ha-icon> ${this._localize('editor.back')}
             </div>
             <h2>${this._localize('editor.consumers_section')}</h2>
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title">🏠 Gesamthausverbrauch (Optional)</div>
+            <div class="consumer-title">${this._localize('editor.house_total_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
                 .value=${entities.house || ""}
                 .configValue=${'house'}
-                .label=${'Sensor für Hausverbrauch (Optional)'}
+                .label=${this._localize('editor.house_sensor_label')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
              <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
-                Wird benötigt, damit das Haus-Icon anklickbar ist.
+                ${this._localize('editor.house_sensor_hint')}
             </div>
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #a855f7;">🚗 Links (Lila)</div>
+            <div class="consumer-title" style="color: #a855f7;">${this._localize('editor.consumer_1_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -523,7 +549,7 @@ class PowerFluxCardEditor extends LitElement {
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #f97316;">♨️ Mitte (Orange)</div>
+            <div class="consumer-title" style="color: #f97316;">${this._localize('editor.consumer_2_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -553,7 +579,7 @@ class PowerFluxCardEditor extends LitElement {
         </div>
 
         <div class="consumer-group">
-            <div class="consumer-title" style="color: #06b6d4;">🏊 Rechts (Türkis)</div>
+            <div class="consumer-title" style="color: #06b6d4;">${this._localize('editor.consumer_3_title')}</div>
             <ha-selector
                 .hass=${this.hass}
                 .selector=${entitySelectorSchema}
@@ -636,7 +662,7 @@ class PowerFluxCardEditor extends LitElement {
                 .selector=${{ number: { min: 0.5, max: 1.5, step: 0.05, mode: "slider" } }}
                 .value=${this._config.zoom !== undefined ? this._config.zoom : 0.9}
                 .configValue=${'zoom'}
-                .label=${"🔍 Zoom (Standard View)"}
+                .label=${this._localize('editor.zoom_label')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
         </div>
@@ -647,7 +673,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_neon_glow'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Neon Glow</div>
+            <div class="switch-label">${this._localize('editor.neon_glow')}</div>
         </div>
         
         <div class="switch-row">
@@ -656,7 +682,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_donut_border'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Donut Chart (Grid/Haus)</div>
+            <div class="switch-label">${this._localize('editor.donut_chart')}</div>
         </div>
         
         <div class="switch-row">
@@ -665,7 +691,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_comet_tail'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Comet Tail Effect</div>
+            <div class="switch-label">${this._localize('editor.comet_tail')}</div>
         </div>
         
         <div class="switch-row">
@@ -674,7 +700,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'show_dashed_line'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Dashed Line Animation</div>
+            <div class="switch-label">${this._localize('editor.dashed_line')}</div>
         </div>
         
         <div class="switch-row">
@@ -683,7 +709,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'use_colored_values'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Farbige Textwerte</div>
+            <div class="switch-label">${this._localize('editor.colored_values')}</div>
         </div>
         
         <div class="switch-row">
@@ -692,7 +718,7 @@ class PowerFluxCardEditor extends LitElement {
                 .configValue=${'hide_consumer_icons'}
                 @change=${this._valueChanged}
             ></ha-switch>
-            <div class="switch-label">Icons unten ausblenden</div>
+            <div class="switch-label">${this._localize('editor.hide_consumer_icons')}</div>
         </div>
         
         <div class="switch-row">
@@ -730,7 +756,7 @@ console.log(
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
-(function () {
+(function (lang_en, lang_de) {
   const cardTranslations = {
     "en": lang_en.card,
     "de": lang_de.card
@@ -1739,7 +1765,7 @@ console.log(
   }
 
   customElements.define("power-flux-card", PowerFluxCard);
-})();
+})(lang_en, lang_de);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
