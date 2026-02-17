@@ -104,10 +104,7 @@ cardTranslations['en'] = lang_en.card;
 
 
 
-const editorTranslations = {
-    "en": lang_en.editor,
-    "de": lang_de.editor
-};
+
 
 
 const fireEvent = (node, type, detail, options) => {
