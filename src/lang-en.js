@@ -20,7 +20,7 @@ export default {
     "editor.battery_soc_label": "State of Charge (%)",
     "editor.house_total_title": "🏠 Total Consumption (optional)",
     "editor.house_sensor_label": "Sensor for House Consumption (optional)",
-    "editor.house_sensor_hint": "Required to make the house icon clickable.",
+    "editor.house_sensor_hint": "Required to make the house icon clickable (compact view).",
     "editor.consumer_1_title": "🚗 Left (Purple)",
     "editor.consumer_2_title": "♨️ Center (Orange)",
     "editor.consumer_3_title": "🏊 Right (Cyan)",

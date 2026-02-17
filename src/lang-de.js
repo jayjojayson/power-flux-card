@@ -20,7 +20,7 @@ export default {
     "editor.battery_soc_label": "Ladestand (%)",
     "editor.house_total_title": "🏠 Gesamtverbrauch (optional)",
     "editor.house_sensor_label": "Sensor für Hausverbrauch (optional)",
-    "editor.house_sensor_hint": "Wird benötigt, damit das Haus-Icon anklickbar ist.",
+    "editor.house_sensor_hint": "Wird benötigt, damit das Haus-Icon anklickbar ist (compact view).",
     "editor.consumer_1_title": "🚗 Links (Lila)",
     "editor.consumer_2_title": "♨️ Mitte (Orange)",
     "editor.consumer_3_title": "🏊 Rechts (Türkis)",

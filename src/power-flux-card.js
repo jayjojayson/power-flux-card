@@ -737,7 +737,7 @@ console.log(
       const house = solarToHouse + gridToHouse + batteryDischarge;
 
       const isTopArcActive = (solarToBatt > 0);
-      const topShift = isTopArcActive ? 0 : 50;
+      const topShift = (isTopArcActive || (!hideInactive && hasSolar && hasBattery)) ? 0 : 50;
       let baseHeight = anyBottomVisible ? 480 : 340;
       const contentHeight = baseHeight - topShift;
 
