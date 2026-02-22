@@ -811,7 +811,8 @@ console.log(
           consumer_1: "",
           consumer_2: "",
           consumer_3: ""
-        }
+        },
+        consumer_tree: []
       };
     }
 
@@ -1419,24 +1420,167 @@ console.log(
 
       const textClass = showNeonGlow ? 'flow-text' : 'flow-text no-shadow';
 
-      // Custom Labels for Consumers
-      const labelC1 = this.config.consumer_1_label || "E-Auto";
-      const labelC2 = this.config.consumer_2_label || "Heizung";
-      const labelC3 = this.config.consumer_3_label || "Pool";
+      const MAX_CONSUMER_TREE_LEVEL = 3; // House = 1, consumers = 2, children = 3
+      const CONSUMER_NODE_SIZE = 90;
+      const CONSUMER_FIRST_ROW_TOP = 370;
+      const CONSUMER_ROW_GAP = 150;
+      const CONSUMER_UNIT_WIDTH = 130;
+      const CONSUMER_MARGIN_X = 50;
+      const CONSUMER_DEFAULT_COLORS = ['#a855f7', '#f97316', '#06b6d4', '#10b981', '#f43f5e', '#0ea5e9', '#eab308', '#8b5cf6'];
 
       const getVal = (entity) => {
         const state = this.hass.states[entity];
         return state ? parseFloat(state.state) || 0 : 0;
       };
 
-      const c1Val = entities.consumer_1 ? getVal(entities.consumer_1) : 0;
-      const c2Val = entities.consumer_2 ? getVal(entities.consumer_2) : 0;
-      const c3Val = entities.consumer_3 ? getVal(entities.consumer_3) : 0;
+      const toPositive = (val) => {
+        if (!Number.isFinite(val)) return 0;
+        return val > 0 ? val : 0;
+      };
 
-      const showC1 = (entities.consumer_1 && Math.round(c1Val) > 0);
-      const showC2 = (entities.consumer_2 && Math.round(c2Val) > 0);
-      const showC3 = (entities.consumer_3 && Math.round(c3Val) > 0);
-      const anyBottomVisible = showC1 || showC2 || showC3;
+      const isMdiIcon = (icon) => typeof icon === 'string' && icon.startsWith('mdi:');
+
+      const createLegacyConsumerTree = () => {
+        const legacyList = [
+          {
+            id: 'consumer_1',
+            entity: entities.consumer_1 || '',
+            label: this.config.consumer_1_label || "E-Auto",
+            icon: this.config.consumer_1_icon || 'car',
+            color: '#a855f7',
+            children: []
+          },
+          {
+            id: 'consumer_2',
+            entity: entities.consumer_2 || '',
+            label: this.config.consumer_2_label || "Heizung",
+            icon: this.config.consumer_2_icon || 'heater',
+            color: '#f97316',
+            children: []
+          },
+          {
+            id: 'consumer_3',
+            entity: entities.consumer_3 || '',
+            label: this.config.consumer_3_label || "Pool",
+            icon: this.config.consumer_3_icon || 'pool',
+            color: '#06b6d4',
+            children: []
+          }
+        ];
+        return legacyList.filter((item) => item.entity && item.entity !== "");
+      };
+
+      const normalizeConsumerNode = (node, fallbackId, treeLevel, fallbackColor) => {
+        if (!node || typeof node !== 'object') return null;
+
+        const rawId = typeof node.id === 'string' && node.id.trim() ? node.id.trim() : fallbackId;
+        const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const entity = typeof node.entity === 'string' ? node.entity : '';
+        const label = typeof node.label === 'string' && node.label.trim() ? node.label.trim() : (entity || safeId);
+        const icon = typeof node.icon === 'string' ? node.icon : '';
+        const color = typeof node.color === 'string' && node.color.trim() ? node.color.trim() : fallbackColor;
+
+        const rawChildren = (treeLevel < MAX_CONSUMER_TREE_LEVEL && Array.isArray(node.children)) ? node.children : [];
+        const children = rawChildren.map((child, index) => {
+          return normalizeConsumerNode(child, `${safeId}_${index + 1}`, treeLevel + 1, color);
+        }).filter(Boolean);
+
+        return { id: safeId, entity, label, icon, color, children };
+      };
+
+      const rawConsumerTree = (Array.isArray(this.config.consumer_tree) && this.config.consumer_tree.length > 0)
+        ? this.config.consumer_tree
+        : createLegacyConsumerTree();
+
+      const consumerTree = rawConsumerTree.map((node, index) => {
+        const fallbackColor = CONSUMER_DEFAULT_COLORS[index % CONSUMER_DEFAULT_COLORS.length];
+        return normalizeConsumerNode(node, `consumer_${index + 1}`, 2, fallbackColor);
+      }).filter(Boolean);
+
+      const computeConsumerFlow = (node, pathSeed) => {
+        const nodeKey = `${pathSeed}/${node.id}`;
+        const mappedChildren = node.children.map((child, index) => {
+          return computeConsumerFlow(child, `${nodeKey}-${index + 1}`);
+        }).filter((child) => child.visible);
+
+        const ownValue = node.entity ? toPositive(getVal(node.entity)) : 0;
+        const childrenValue = mappedChildren.reduce((sum, child) => sum + child.value, 0);
+        let nodeValue = ownValue > 0 ? ownValue : childrenValue;
+        let remaining = nodeValue;
+
+        const boundedChildren = mappedChildren.map((child) => {
+          const boundedValue = ownValue > 0 ? Math.min(child.value, Math.max(0, remaining)) : child.value;
+          if (ownValue > 0) remaining -= boundedValue;
+          return { ...child, value: boundedValue, visible: boundedValue > 0 };
+        }).filter((child) => child.visible);
+
+        if (ownValue <= 0 && boundedChildren.length > 0) {
+          nodeValue = boundedChildren.reduce((sum, child) => sum + child.value, 0);
+        }
+
+        return {
+          ...node,
+          key: nodeKey,
+          value: nodeValue,
+          children: boundedChildren,
+          visible: nodeValue > 0
+        };
+      };
+
+      const visibleConsumerTree = consumerTree.map((node, index) => {
+        return computeConsumerFlow(node, `root-${index + 1}`);
+      }).filter((node) => node.visible);
+
+      const getLeafUnits = (node) => {
+        if (!node.children || node.children.length === 0) return 1;
+        return node.children.reduce((sum, child) => sum + getLeafUnits(child), 0);
+      };
+
+      const totalLeafUnits = visibleConsumerTree.reduce((sum, node) => sum + getLeafUnits(node), 0);
+      const dynamicWidth = totalLeafUnits > 0
+        ? (CONSUMER_MARGIN_X * 2) + (CONSUMER_UNIT_WIDTH * totalLeafUnits)
+        : 420;
+      const designWidth = Math.max(420, dynamicWidth);
+
+      const consumerPositionMap = new Map();
+      let leafCursor = (designWidth / 2) - (((Math.max(totalLeafUnits, 1) - 1) * CONSUMER_UNIT_WIDTH) / 2);
+      const assignConsumerX = (node, depth) => {
+        if (!node.children || node.children.length === 0) {
+          const leafX = leafCursor;
+          leafCursor += CONSUMER_UNIT_WIDTH;
+          consumerPositionMap.set(node.key, { x: leafX, depth });
+          return leafX;
+        }
+
+        const childXs = node.children.map((child) => assignConsumerX(child, depth + 1));
+        const x = (childXs[0] + childXs[childXs.length - 1]) / 2;
+        consumerPositionMap.set(node.key, { x, depth });
+        return x;
+      };
+      visibleConsumerTree.forEach((node) => assignConsumerX(node, 1));
+
+      const consumerParents = new Map();
+      const consumerNodes = [];
+      const collectConsumerNodes = (node, parentKey = null) => {
+        const layout = consumerPositionMap.get(node.key);
+        if (!layout) return;
+
+        const top = CONSUMER_FIRST_ROW_TOP + ((layout.depth - 1) * CONSUMER_ROW_GAP);
+        consumerNodes.push({
+          ...node,
+          x: layout.x,
+          depth: layout.depth,
+          top
+        });
+        consumerParents.set(node.key, parentKey);
+        node.children.forEach((child) => collectConsumerNodes(child, node.key));
+      };
+      visibleConsumerTree.forEach((node) => collectConsumerNodes(node, null));
+
+      const consumerDepthVisible = consumerNodes.reduce((maxDepth, node) => {
+        return Math.max(maxDepth, node.depth);
+      }, 0);
+      const anyBottomVisible = consumerNodes.length > 0;
 
       const solar = hasSolar ? getVal(entities.solar) : 0;
       const gridMain = hasGrid ? getVal(entities.grid) : 0;
@@ -1484,14 +1628,16 @@ console.log(
 
       const isTopArcActive = (solarToBatt > 0);
       const topShift = (isTopArcActive || (!hideInactive && hasSolar && hasBattery)) ? 0 : 50;
-      let baseHeight = anyBottomVisible ? 480 : 340;
+      let baseHeight = 340;
+      if (anyBottomVisible) {
+        const lastConsumerRowTop = CONSUMER_FIRST_ROW_TOP + ((consumerDepthVisible - 1) * CONSUMER_ROW_GAP);
+        baseHeight = lastConsumerRowTop + CONSUMER_NODE_SIZE + 20;
+      }
       const contentHeight = baseHeight - topShift;
 
-      const designWidth = 420;
       const availableWidth = this._cardWidth || designWidth;
-      let scale = availableWidth / designWidth;
       const userZoom = this.config.zoom !== undefined ? this.config.zoom : 0.9;
-      scale = scale * userZoom;
+      let scale = (availableWidth / designWidth) * userZoom;
 
       if (scale < 0.5) scale = 0.5;
       if (scale > 1.5) scale = 1.5;
@@ -1616,51 +1762,94 @@ console.log(
 
       const getCustomClass = (icon) => icon ? 'has-custom-icon' : '';
 
-      const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
-        if (!isVisible) return html``;
+      const bubblePositionStyle = (centerX, topY) => `left: ${centerX - (CONSUMER_NODE_SIZE / 2)}px; top: ${topY}px;`;
 
-        const customIcon = this.config[`${configKey}_icon`];
-        let iconContent;
-
-        const isCustom = !hideConsumerIcons && !!customIcon;
-        const dynamicClass = isCustom ? 'has-custom-icon' : '';
-
-        if (hideConsumerIcons) {
-          iconContent = html``;
-        } else if (customIcon) {
-          iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${hexColor};"></ha-icon>`;
-        } else {
-          iconContent = this._renderIcon(iconType, val);
+      const renderConsumerIcon = (node) => {
+        if (hideConsumerIcons) return html``;
+        if (isMdiIcon(node.icon)) {
+          return html`<ha-icon icon="${node.icon}" class="icon-custom" style="color: ${node.color};"></ha-icon>`;
         }
+        if (node.icon) {
+          return this._renderIcon(node.icon, node.value);
+        }
+        return html`<ha-icon icon="mdi:flash" class="icon-custom" style="color: ${node.color};"></ha-icon>`;
+      };
+
+      const renderConsumerNode = (node) => {
+        const tintStyle = showTint ? `background: color-mix(in srgb, ${node.color}, transparent 85%);` : '';
+        const glowStyle = showNeonGlow ? `box-shadow: 0 0 15px color-mix(in srgb, ${node.color}, transparent 60%);` : 'box-shadow: none;';
+        const bubbleStyle = `${bubblePositionStyle(node.x, node.top)} border-color: ${node.color}; ${tintStyle} ${glowStyle}`;
+        const customClass = (!hideConsumerIcons && isMdiIcon(node.icon)) ? 'has-custom-icon' : '';
 
         return html`
-            <div class="bubble ${cssClass} node ${cssClass.replace('c', 'node-c')} ${tintClass} ${dynamicClass} ${glowClass}">
-                ${iconContent}
-                ${renderLabel(label, true)}
-                <div class="value" style="${getConsumerColorStyle(hexColor)}">${this._formatPower(val)}</div>
-            </div>
+          <div class="bubble node ${customClass}" style="${bubbleStyle}">
+            ${renderConsumerIcon(node)}
+            ${renderLabel(node.label, true)}
+            <div class="value" style="${getConsumerColorStyle(node.color)}">${this._formatPower(node.value)}</div>
+          </div>
         `;
       };
 
-      const getConsumerPipeStyle = (isActive, val) => {
-        if (!isActive) return "display: none;";
-        return getPipeStyle(val);
+      const houseX = designWidth / 2;
+      const solarX = houseX - 160;
+      const gridX = houseX;
+      const batteryX = houseX + 160;
+      const mainTopY = 70;
+      const mainBottomY = 160;
+      const mainCenterY = 115;
+      const houseTopY = 220;
+      const houseCenterY = 265;
+      const houseBottomY = 310;
+
+      const buildHouseToConsumerPath = (targetX, targetTop) => {
+        if (Math.abs(targetX - houseX) < 1) {
+          return `M ${houseX} ${houseBottomY} L ${targetX} ${targetTop}`;
+        }
+        const startX = targetX < houseX ? houseX - 45 : houseX + 45;
+        return `M ${startX} ${houseCenterY} Q ${targetX} ${houseCenterY} ${targetX} ${targetTop}`;
       };
 
-      const getConsumerAnimStyle = (isActive, val) => {
-        if (!isActive) return "display: none;";
-        return getAnimStyle(val);
+      const buildConsumerToChildPath = (parentNode, childNode) => {
+        const parentBottomY = parentNode.top + CONSUMER_NODE_SIZE;
+        if (Math.abs(parentNode.x - childNode.x) < 1) {
+          return `M ${parentNode.x} ${parentBottomY} L ${childNode.x} ${childNode.top}`;
+        }
+        const controlY = parentBottomY + ((childNode.top - parentBottomY) * 0.45);
+        return `M ${parentNode.x} ${parentBottomY} Q ${childNode.x} ${controlY} ${childNode.x} ${childNode.top}`;
       };
 
-      const pathSolarHouse = "M 50 160 Q 50 265 165 265";
-      const pathSolarBatt = "M 50 70 Q 210 -20 370 70";
-      const pathGridImport = "M 210 160 L 210 220";
-      const pathGridExport = "M 165 115 Q 130 145 95 115";
-      const pathGridToBatt = "M 255 115 Q 290 145 325 115";
-      const pathBattHouse = "M 370 160 Q 370 265 255 265";
-      const pathHouseC1 = "M 165 265 Q 50 265 50 370";
-      const pathHouseC2 = "M 210 310 L 210 370";
-      const pathHouseC3 = "M 255 265 Q 370 265 370 370";
+      const consumerNodeByKey = new Map(consumerNodes.map((node) => [node.key, node]));
+      const consumerConnections = consumerNodes.map((node) => {
+        const parentKey = consumerParents.get(node.key);
+        if (!parentKey) {
+          return {
+            path: buildHouseToConsumerPath(node.x, node.top),
+            color: node.color,
+            value: node.value
+          };
+        }
+        const parentNode = consumerNodeByKey.get(parentKey);
+        if (!parentNode) return null;
+        return {
+          path: buildConsumerToChildPath(parentNode, node),
+          color: node.color,
+          value: node.value
+        };
+      }).filter(Boolean);
+
+      const pathSolarHouse = `M ${solarX} ${mainBottomY} Q ${solarX} ${houseCenterY} ${houseX - 45} ${houseCenterY}`;
+      const pathSolarBatt = `M ${solarX} ${mainTopY} Q ${houseX} -20 ${batteryX} ${mainTopY}`;
+      const pathGridImport = `M ${gridX} ${mainBottomY} L ${gridX} ${houseTopY}`;
+      const pathGridExport = `M ${houseX - 45} ${mainCenterY} Q ${houseX - 80} ${mainCenterY + 30} ${houseX - 115} ${mainCenterY}`;
+      const pathGridToBatt = `M ${houseX + 45} ${mainCenterY} Q ${houseX + 80} ${mainCenterY + 30} ${houseX + 115} ${mainCenterY}`;
+      const pathBattHouse = `M ${batteryX} ${mainBottomY} Q ${batteryX} ${houseCenterY} ${houseX + 45} ${houseCenterY}`;
+
+      const solarHouseTextX = houseX - 110;
+      const solarBattTextX = houseX;
+      const gridHouseTextX = houseX + 25;
+      const gridExportTextX = houseX - 80;
+      const gridBattTextX = houseX + 80;
+      const battHouseTextX = houseX + 110;
 
       const houseTextStyle = houseTextCol ? `color: ${houseTextCol};` : '';
       const dashArrayVal = showTail ? '30 360' : (showDashedLine ? '13 13' : '0 380');
@@ -1669,10 +1858,10 @@ console.log(
       return html`
       <ha-card style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
         
-        <div class="scale-wrapper" style="transform: scale(${scale});">
-            
-            <div class="absolute-container" style="height: ${baseHeight}px; top: -${topShift}px;">
-                <svg height="${baseHeight}" viewBox="0 0 420 ${baseHeight}" preserveAspectRatio="xMidYMid meet">
+        <div class="scale-wrapper" style="width: ${designWidth}px; transform: scale(${scale});">
+             
+            <div class="absolute-container" style="width: ${designWidth}px; height: ${baseHeight}px; top: -${topShift}px;">
+                <svg height="${baseHeight}" viewBox="0 0 ${designWidth} ${baseHeight}" preserveAspectRatio="xMidYMid meet">
                     
                     <path class="bg-path bg-solar" d="${pathSolarHouse}" style="${getPipeStyle(solarToHouse)} ${styleSolar}" />
                     <path class="bg-path bg-solar" d="${pathSolarBatt}" style="${getPipeStyle(solarToBatt)} ${styleSolarBatt}" />
@@ -1680,12 +1869,12 @@ console.log(
                     <path class="bg-path bg-grid" d="${pathGridImport}" style="${getPipeStyle(gridToHouse)} ${styleGrid}" />
                     <path class="bg-path bg-export" d="${pathGridExport}" style="${getPipeStyle(gridExport)} ${styleGrid}" />
                     <path class="bg-path bg-grid" d="${pathGridToBatt}" style="${getPipeStyle(gridToBatt)} ${styleGridBatt}" />
-                    
+                     
                     <path class="bg-path bg-battery" d="${pathBattHouse}" style="${getPipeStyle(batteryDischarge)} ${styleBattery}" />
 
-                    <path d="${pathHouseC1}" fill="none" stroke="#a855f7" stroke-width="6" style="${getConsumerPipeStyle(showC1, c1Val)}" />
-                    <path d="${pathHouseC2}" fill="none" stroke="#f97316" stroke-width="6" style="${getConsumerPipeStyle(showC2, c2Val)}" />
-                    <path d="${pathHouseC3}" fill="none" stroke="#06b6d4" stroke-width="6" style="${getConsumerPipeStyle(showC3, c3Val)}" />
+                    ${consumerConnections.map((conn) => html`
+                      <path d="${conn.path}" fill="none" stroke="${conn.color}" stroke-width="6" style="${getPipeStyle(conn.value)}" />
+                    `)}
 
                     <path class="flow-line flow-solar" d="${pathSolarHouse}" style="${getAnimStyle(solarToHouse)} ${styleSolar}" />
                     <path class="flow-line flow-solar" d="${pathSolarBatt}" style="${getAnimStyle(solarToBatt)} ${styleSolarBatt}" />
@@ -1693,55 +1882,53 @@ console.log(
                     <path class="flow-line flow-grid" d="${pathGridImport}" style="${getAnimStyle(gridToHouse)} ${styleGrid}" />
                     <path class="flow-line flow-export" d="${pathGridExport}" style="${getAnimStyle(gridExport)} ${styleGrid}" />
                     <path class="flow-line flow-grid" d="${pathGridToBatt}" style="${getAnimStyle(gridToBatt)} ${styleGridBatt}" />
-                    
+                     
                     <path class="flow-line flow-battery" d="${pathBattHouse}" style="${getAnimStyle(batteryDischarge)} ${styleBattery}" />
 
-                    <path class="flow-line" d="${pathHouseC1}" stroke="#a855f7" style="${getConsumerAnimStyle(showC1, c1Val)}" />
-                    <path class="flow-line" d="${pathHouseC2}" stroke="#f97316" style="${getConsumerAnimStyle(showC2, c2Val)}" />
-                    <path class="flow-line" d="${pathHouseC3}" stroke="#06b6d4" style="${getConsumerAnimStyle(showC3, c3Val)}" />
+                    ${consumerConnections.map((conn) => html`
+                      <path class="flow-line" d="${conn.path}" stroke="${conn.color}" style="${getAnimStyle(conn.value)}" />
+                    `)}
 
-                    <text x="100" y="235" class="${textClass} text-solar" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
-                    <text x="210" y="45" class="${textClass} text-solar" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>
+                    <text x="${solarHouseTextX}" y="235" class="${textClass} text-solar" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
+                    <text x="${solarBattTextX}" y="45" class="${textClass} text-solar" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>
                     
-                    <text x="235" y="195" class="${textClass} text-grid" style="${getTextStyle(gridToHouse, 'grid')} ${styleGrid}">${this._formatPower(gridToHouse)}</text>
-                    <text x="130" y="145" class="${textClass} text-export" style="${getTextStyle(gridExport, 'grid')} ${styleGrid}">${this._formatPower(gridExport)}</text>
-                    <text x="290" y="145" class="${textClass} text-grid" style="${getTextStyle(gridToBatt, 'grid')} ${styleGridBatt}">${this._formatPower(gridToBatt)}</text>
+                    <text x="${gridHouseTextX}" y="195" class="${textClass} text-grid" style="${getTextStyle(gridToHouse, 'grid')} ${styleGrid}">${this._formatPower(gridToHouse)}</text>
+                    <text x="${gridExportTextX}" y="145" class="${textClass} text-export" style="${getTextStyle(gridExport, 'grid')} ${styleGrid}">${this._formatPower(gridExport)}</text>
+                    <text x="${gridBattTextX}" y="145" class="${textClass} text-grid" style="${getTextStyle(gridToBatt, 'grid')} ${styleGridBatt}">${this._formatPower(gridToBatt)}</text>
                     
-                    <text x="320" y="235" class="${textClass} text-battery" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
+                    <text x="${battHouseTextX}" y="235" class="${textClass} text-battery" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
 
                 </svg>
 
                 ${hasSolar ? html`
-                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node node-solar ${tintClass} ${isSolarActive ? glowClass : ''} ${getCustomClass(iconSolar)}">
+                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node node-solar ${tintClass} ${isSolarActive ? glowClass : ''} ${getCustomClass(iconSolar)}" style="${bubblePositionStyle(solarX, mainTopY)}">
                     ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
                     ${renderLabel(labelSolarText, showLabelSolar)}
                     <div class="value" style="${isSolarActive ? getColorStyle('--neon-yellow') : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
                 </div>` : ''}
                 
                 ${hasGrid ? html`
-                <div class="bubble ${isGridActive ? 'grid' : 'inactive'} node node-grid ${tintClass} ${isGridActive ? glowClass : ''} ${getCustomClass(iconGrid)}">
+                <div class="bubble ${isGridActive ? 'grid' : 'inactive'} node node-grid ${tintClass} ${isGridActive ? glowClass : ''} ${getCustomClass(iconGrid)}" style="${bubblePositionStyle(gridX, mainTopY)}">
                     ${renderMainIcon('grid', gridImport, iconGrid, gridColor)}
                     ${renderLabel(labelGridText, showLabelGrid)}
                     <div class="value" style="${isGridActive ? getColorStyle('--neon-blue') : `color: ${gridColor};`}">${this._formatPower(gridImport)}</div>
                 </div>` : ''}
                 
                 ${hasBattery ? html`
-                <div class="bubble battery node node-battery ${tintClass} ${glowClass} ${getCustomClass(iconBattery)}">
+                <div class="bubble battery node node-battery ${tintClass} ${glowClass} ${getCustomClass(iconBattery)}" style="${bubblePositionStyle(batteryX, mainTopY)}">
                     ${renderMainIcon('battery', battSoc, iconBattery)}
                     ${renderLabel(labelBatteryText, showLabelBattery)}
                     <div class="value" style="${getColorStyle('--neon-green')}">${Math.round(battSoc)}%</div>
                 </div>` : ''}
                 
                 <div class="bubble house node node-house ${showDonut ? 'donut' : ''} ${tintClass}" 
-                    style="${houseBubbleStyle}">
+                    style="${bubblePositionStyle(houseX, houseTopY)} ${houseBubbleStyle}">
                     ${renderMainIcon('house', 0, null, houseDominantColor)}
                     ${renderLabel(labelHouseText, showLabelHouse)}
                     <div class="value" style="${houseTextStyle}">${this._formatPower(house)}</div>
                 </div>
 
-                ${renderConsumer(showC1, 'c1', 'consumer_1', labelC1, 'car', c1Val, '#a855f7')}
-                ${renderConsumer(showC2, 'c2', 'consumer_2', labelC2, 'heater', c2Val, '#f97316')}
-                ${renderConsumer(showC3, 'c3', 'consumer_3', labelC3, 'pool', c3Val, '#06b6d4')}
+                ${consumerNodes.map((node) => renderConsumerNode(node))}
                 
             </div>
         </div>
