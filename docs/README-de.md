@@ -26,8 +26,20 @@ Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewert
   - **Donut Chart**: Optionales Donut-Diagramm um das Haus-Icon, das den Energiemix zeigt.
   - **Kometenschweif / Gestrichelte Linien**: Wählen Sie Ihren bevorzugten Animationsstil.
   - **Zoom**: Anpassbare Größe für Ihr Dashboard.
+  - **Benutzerdefinierte Farben**: Definiere benutzerdefinierte Farben für jede Quelle und jeden Verbraucher über den Editor.
+  - **Hintergrundfarbe**: Aktiviere einen leicht getönten Hintergrund für die Kreise in der Standard-Ansicht.
+- **Dynamische Animationsgeschwindigkeit**: Partikelgeschwindigkeit und -dichte passen sich dem aktuellen Energiefluss an.
+- **Weitere Informationen**: Klicke auf eine beliebige Quelle/Verbraucher, um detaillierte Informationen in einem More-Info-Dialog anzuzeigen.
+- **Netz-Import/Export**: Unterstützt sowohl separate Import/Export-Entitäten als auch eine kombinierte Entität mit positiven/negativen Werten.
+- **Netz-zu-Batterie**: Optionaler direkter Sensor für den Netz-zu-Batterie-Fluss, der die Standardberechnung umgeht.
+- **Sekundäre Sensoren**: Optional können sekundäre Sensorwerte in den Hauptkreisen (z.B. Tagesertrag für Solar, aktuelle Lade-/Entladeleistung für Batterie) angezeigt werden.
 - **Lokalisierung**: Vollständig übersetzt in Deutsch und Englisch.
 - **Visueller Editor**: Einfache Konfiguration über die Home Assistant UI.
+
+[![Watch the video](https://img.youtube.com/vi/HGFBJJRWGW0/0.jpg)](https://www.youtube.com/watch?v=HGFBJJRWGW0
+)
+
+---
 
 ### 🚀 Installation
 
@@ -52,6 +64,9 @@ Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewert
 3. Füge die Ressource in Ihrer Dashboard-Konfiguration hinzu:
    - URL: `/local/community/power-flux-card/power-flux-card.js`
    - Typ: JavaScript Module
+
+
+---
 
 ### ⚙️ Konfiguration
 

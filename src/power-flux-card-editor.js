@@ -65,10 +65,12 @@ class PowerFluxCardEditor extends LitElement {
 
         if (key) {
             const entityKeys = [
-                'solar', 'grid', 'grid_export',
-                'battery', 'battery_soc',
+                'solar', 'grid', 'grid_export', 'grid_combined',
+                'battery', 'battery_soc', 'grid_to_battery',
                 'house',
-                'consumer_1', 'consumer_2', 'consumer_3'
+                'consumer_1', 'consumer_2', 'consumer_3',
+                'secondary_solar', 'secondary_grid', 'secondary_battery',
+                'secondary_consumer_1', 'secondary_consumer_2', 'secondary_consumer_3'
             ];
 
             let newConfig = { ...this._config };
@@ -99,6 +101,65 @@ class PowerFluxCardEditor extends LitElement {
 
     _goBack() {
         this._subView = null;
+    }
+
+    _clearEntity(key) {
+        const newConfig = { ...this._config };
+        const currentEntities = newConfig.entities || {};
+        const newEntities = { ...currentEntities, [key]: "" };
+        newConfig.entities = newEntities;
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
+    _colorChanged(key, ev) {
+        const newConfig = { ...this._config, [key]: ev.target.value };
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
+    _resetColor(key) {
+        const newConfig = { ...this._config };
+        delete newConfig[key];
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
+    _renderEntitySelector(entitySelectorSchema, value, configValue, label) {
+        const val = value || "";
+        return html`
+            <div class="entity-picker-wrapper">
+                <ha-selector
+                    .hass=${this.hass}
+                    .selector=${entitySelectorSchema}
+                    .value=${val}
+                    .configValue=${configValue}
+                    .label=${label}
+                    @value-changed=${this._valueChanged}
+                ></ha-selector>
+                ${val ? html`<ha-icon 
+                    class="clear-entity-btn" 
+                    icon="mdi:close-circle" 
+                    @click=${() => this._clearEntity(configValue)}
+                ></ha-icon>` : ''}
+            </div>
+        `;
+    }
+
+    _renderColorPicker(key, label, defaultColor) {
+        const currentColor = this._config[key] || defaultColor;
+        const hasCustom = !!this._config[key];
+        return html`
+            <div class="color-picker-row">
+                <input type="color" 
+                       .value=${currentColor}
+                       @input=${(e) => this._colorChanged(key, e)}>
+                <span class="color-label">${label}</span>
+                ${hasCustom ? html`<ha-icon class="color-reset-btn" 
+                    icon="mdi:refresh" 
+                    @click=${() => this._resetColor(key)}></ha-icon>` : ''}
+            </div>
+        `;
     }
 
     static get styles() {
@@ -179,6 +240,60 @@ class PowerFluxCardEditor extends LitElement {
           border-bottom: 1px solid var(--divider-color);
           margin: 10px 0;
       }
+      .entity-picker-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+      }
+      .entity-picker-wrapper ha-selector {
+          flex: 1;
+      }
+      .clear-entity-btn {
+          --mdc-icon-size: 20px;
+          color: var(--secondary-text-color);
+          cursor: pointer;
+          flex-shrink: 0;
+          margin-top: -12px;
+      }
+      .clear-entity-btn:hover {
+          color: var(--error-color, #db4437);
+      }
+      .color-picker-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 0;
+      }
+      .color-picker-row input[type="color"] {
+          -webkit-appearance: none;
+          border: 2px solid var(--divider-color);
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          padding: 2px;
+          cursor: pointer;
+          background: transparent;
+      }
+      .color-picker-row input[type="color"]::-webkit-color-swatch-wrapper {
+          padding: 0;
+      }
+      .color-picker-row input[type="color"]::-webkit-color-swatch {
+          border: none;
+          border-radius: 50%;
+      }
+      .color-label {
+          flex: 1;
+          font-size: 14px;
+      }
+      .color-reset-btn {
+          --mdc-icon-size: 20px;
+          color: var(--secondary-text-color);
+          cursor: pointer;
+      }
+      .color-reset-btn:hover {
+          color: var(--primary-color);
+      }
     `;
     }
 
@@ -193,14 +308,7 @@ class PowerFluxCardEditor extends LitElement {
             <h2>${this._localize('editor.solar_section')}</h2>
         </div>
         
-        <ha-selector
-            .hass=${this.hass}
-            .selector=${entitySelectorSchema}
-            .value=${entities.solar}
-            .configValue=${'solar'}
-            .label=${this._localize('editor.entity')}
-            @value-changed=${this._valueChanged}
-        ></ha-selector>
+        ${this._renderEntitySelector(entitySelectorSchema, entities.solar, 'solar', this._localize('editor.entity'))}
         
         <div class="separator"></div>
 
@@ -221,6 +329,10 @@ class PowerFluxCardEditor extends LitElement {
             .label=${this._localize('editor.icon') + " (Optional)"}
             @value-changed=${this._valueChanged}
         ></ha-selector>
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_solar || "", 'secondary_solar', this._localize('editor.secondary_sensor'))}
+
+        ${this._renderColorPicker('color_solar', this._localize('editor.color_picker'), '#ffdd00')}
 
         <div class="separator"></div>
 
@@ -253,23 +365,16 @@ class PowerFluxCardEditor extends LitElement {
             <h2>${this._localize('editor.grid_section')}</h2>
         </div>
         
-        <ha-selector
-            .hass=${this.hass}
-            .selector=${entitySelectorSchema}
-            .value=${entities.grid}
-            .configValue=${'grid'}
-            .label=${this._localize('card.label_import') + " (W)"}
-            @value-changed=${this._valueChanged}
-        ></ha-selector>
+        ${this._renderEntitySelector(entitySelectorSchema, entities.grid_combined || "", 'grid_combined', this._localize('editor.grid_combined_sensor'))}
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+            ${this._localize('editor.grid_combined_hint')}
+        </div>
 
-        <ha-selector
-            .hass=${this.hass}
-            .selector=${entitySelectorSchema}
-            .value=${entities.grid_export}
-            .configValue=${'grid_export'}
-            .label=${this._localize('card.label_export') + " (W, Optional)"}
-            @value-changed=${this._valueChanged}
-        ></ha-selector>
+        <div class="separator"></div>
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.grid, 'grid', this._localize('card.label_import') + " (W)")}
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.grid_export, 'grid_export', this._localize('card.label_export') + " (W, Optional)")}
 
         <div class="separator"></div>
 
@@ -290,6 +395,10 @@ class PowerFluxCardEditor extends LitElement {
             .label=${this._localize('editor.icon') + " (Optional)"}
             @value-changed=${this._valueChanged}
         ></ha-selector>
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_grid || "", 'secondary_grid', this._localize('editor.secondary_sensor'))}
+
+        ${this._renderColorPicker('color_grid', this._localize('editor.color_picker'), '#3b82f6')}
 
         <div class="separator"></div>
         
@@ -322,23 +431,14 @@ class PowerFluxCardEditor extends LitElement {
             <h2>${this._localize('editor.battery_section')}</h2>
         </div>
         
-        <ha-selector
-            .hass=${this.hass}
-            .selector=${entitySelectorSchema}
-            .value=${entities.battery}
-            .configValue=${'battery'}
-            .label=${this._localize('editor.entity')}
-            @value-changed=${this._valueChanged}
-        ></ha-selector>
+        ${this._renderEntitySelector(entitySelectorSchema, entities.battery, 'battery', this._localize('editor.entity'))}
 
-        <ha-selector
-            .hass=${this.hass}
-            .selector=${entitySelectorSchema}
-            .value=${entities.battery_soc}
-            .configValue=${'battery_soc'}
-            .label=${this._localize('editor.battery_soc_label')}
-            @value-changed=${this._valueChanged}
-        ></ha-selector>
+        ${this._renderEntitySelector(entitySelectorSchema, entities.battery_soc, 'battery_soc', this._localize('editor.battery_soc_label'))}
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.grid_to_battery || "", 'grid_to_battery', this._localize('editor.grid_to_battery_sensor'))}
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+            ${this._localize('editor.grid_to_battery_hint')}
+        </div>
         
         <div class="separator"></div>
 
@@ -359,6 +459,10 @@ class PowerFluxCardEditor extends LitElement {
             .label=${this._localize('editor.icon') + " (Optional)"}
             @value-changed=${this._valueChanged}
         ></ha-selector>
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_battery || "", 'secondary_battery', this._localize('editor.secondary_sensor'))}
+
+        ${this._renderColorPicker('color_battery', this._localize('editor.color_picker'), '#00ff88')}
         
         <div class="separator"></div>
         
@@ -402,14 +506,7 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="consumer-group">
             <div class="consumer-title">${this._localize('editor.house_total_title')}</div>
-            <ha-selector
-                .hass=${this.hass}
-                .selector=${entitySelectorSchema}
-                .value=${entities.house || ""}
-                .configValue=${'house'}
-                .label=${this._localize('editor.house_sensor_label')}
-                @value-changed=${this._valueChanged}
-            ></ha-selector>
+            ${this._renderEntitySelector(entitySelectorSchema, entities.house || "", 'house', this._localize('editor.house_sensor_label'))}
              <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
                 ${this._localize('editor.house_sensor_hint')}
             </div>
@@ -417,14 +514,7 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="consumer-group">
             <div class="consumer-title" style="color: #a855f7;">${this._localize('editor.consumer_1_title')}</div>
-            <ha-selector
-                .hass=${this.hass}
-                .selector=${entitySelectorSchema}
-                .value=${entities.consumer_1}
-                .configValue=${'consumer_1'}
-                .label=${this._localize('editor.entity')}
-                @value-changed=${this._valueChanged}
-            ></ha-selector>
+            ${this._renderEntitySelector(entitySelectorSchema, entities.consumer_1, 'consumer_1', this._localize('editor.entity'))}
             
             <ha-selector
                 .hass=${this.hass}
@@ -443,18 +533,24 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.invert_consumer_1')}</span>
+                <ha-switch
+                    .checked=${this._config.invert_consumer_1 === true}
+                    .configValue=${'invert_consumer_1'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_1 || "", 'secondary_consumer_1', this._localize('editor.secondary_sensor'))}
+
+            ${this._renderColorPicker('color_consumer_1', this._localize('editor.color_picker'), '#a855f7')}
         </div>
 
         <div class="consumer-group">
             <div class="consumer-title" style="color: #f97316;">${this._localize('editor.consumer_2_title')}</div>
-            <ha-selector
-                .hass=${this.hass}
-                .selector=${entitySelectorSchema}
-                .value=${entities.consumer_2}
-                .configValue=${'consumer_2'}
-                .label=${this._localize('editor.entity')}
-                @value-changed=${this._valueChanged}
-            ></ha-selector>
+            ${this._renderEntitySelector(entitySelectorSchema, entities.consumer_2, 'consumer_2', this._localize('editor.entity'))}
 
             <ha-selector
                 .hass=${this.hass}
@@ -473,18 +569,15 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_2 || "", 'secondary_consumer_2', this._localize('editor.secondary_sensor'))}
+
+            ${this._renderColorPicker('color_consumer_2', this._localize('editor.color_picker'), '#f97316')}
         </div>
 
         <div class="consumer-group">
             <div class="consumer-title" style="color: #06b6d4;">${this._localize('editor.consumer_3_title')}</div>
-            <ha-selector
-                .hass=${this.hass}
-                .selector=${entitySelectorSchema}
-                .value=${entities.consumer_3}
-                .configValue=${'consumer_3'}
-                .label=${this._localize('editor.entity')}
-                @value-changed=${this._valueChanged}
-            ></ha-selector>
+            ${this._renderEntitySelector(entitySelectorSchema, entities.consumer_3, 'consumer_3', this._localize('editor.entity'))}
 
             <ha-selector
                 .hass=${this.hass}
@@ -503,6 +596,10 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_3 || "", 'secondary_consumer_3', this._localize('editor.secondary_sensor'))}
+
+            ${this._renderColorPicker('color_consumer_3', this._localize('editor.color_picker'), '#06b6d4')}
         </div>
       `;
     }
@@ -598,6 +695,15 @@ class PowerFluxCardEditor extends LitElement {
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.dashed_line')}</div>
+        </div>
+        
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_tinted_background === true}
+                .configValue=${'show_tinted_background'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.tinted_background')}</div>
         </div>
         
         <div class="switch-row">

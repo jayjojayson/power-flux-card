@@ -26,8 +26,18 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
   - **Donut Chart**: Optional donut chart around the house icon showing energy mix.
   - **Comet Tail / Dashed Lines**: Choose your preferred animation style.
   - **Zoom**: Adjustable scale to fit your dashboard.
+  - **Custom Colors**: Define custom colors for each source and consumer via the editor.
+  - **Background Color**: Enable a slightly tinted background for the circles in the default view.
+- **More Info**: Click on any source/consumer for detailed information in a more-info dialog.
+- **Grid Import/Export**: Supports both separate Import/Export entities or a combined entity with positive/negative values.
+- **Grid-to-Battery**: Optional direct sensor for Grid-to-Battery flow, bypassing the standard calculation.
+- **Secondary Sensors**: Optionally display a secondary sensor value in the main circles (e.g., daily yield for Solar, current charge/discharge power for Battery) and consumer bubbles.
 - **Localization**: Fully translated in English and German.
 - **Visual Editor**: easy configuration via the Home Assistant UI.
+
+[![Support](https://img.shields.io/badge/Features-Video%20german-steelblue?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=HGFBJJRWGW0)
+
+---
 
 ### 🚀 Installation
 
@@ -53,6 +63,8 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
 3. Add the resource in your Dashboard configuration:
    - URL: `/local/community/power-flux-card/power-flux-card.js`
    - Type: JavaScript Module
+
+---
 
 ### ⚙️ Configuration
 
