@@ -18,7 +18,7 @@ const lang_de = {
     "editor.label_toggle": "Label im Kreis anzeigen",
     "editor.compact_view": "Kompakte Ansicht (evcc)",
     "editor.hide_inactive": "Inaktive Röhren ausblenden",
-    "editor.entity": "Entität (Watt)",
+    "editor.entity": "Kombinierter Batterie Sensor (W)",
     "editor.label": "Beschriftung",
     "editor.icon": "Icon",
     "editor.back": "Zurück",
@@ -39,15 +39,22 @@ const lang_de = {
     "editor.hide_consumer_icons": "Icons unten ausblenden",
     "editor.invert_consumer_1": "Sensorwert invertieren (+/-)",
     "editor.secondary_sensor": "Zweiter Sensor (nur Anzeige)",
-    "editor.grid_to_battery_sensor": "Netz-zu-Batterie Sensor (Watt)",
+    "editor.grid_to_battery_sensor": "Netz-zu-Batterie Sensor (W, Optional)",
     "editor.grid_to_battery_hint": "Optional: separater Sensor für den Netz-zu-Batterie Fluss. Wenn leer, wird der Wert automatisch berechnet.",
     "editor.grid_combined_sensor": "Kombinierter Netz-Sensor (W, Optional)",
     "editor.grid_combined_hint": "Ein Sensor für Import UND Export: positiv = Import, negativ = Export. Überschreibt den kombinierten Import/Export Sensor.",
-    "editor.color_picker": "Kreis Farbe",
-    "editor.pipe_color": "Rohr Farbe",
-    "editor.export_color": "Export Farbe",
+    "editor.color_picker": "Bubble",
+    "editor.pipe_color": "Pipe",
+    "editor.export_color": "Export",
     "editor.consumer_unit_kw": "Sensor meldet in kW",
     "editor.show_consumer_always": "Verbraucher bei null Watt anzeigen",
+    "editor.battery_charge_sensor": "Batterie-Ladung Sensor (W, Optional)",
+    "editor.battery_discharge_sensor": "Batterie-Entladung Sensor (W, Optional)",
+    "editor.battery_separate_hint": "Optional: Separate Sensoren für Laden/Entladen. Überschreiben den Hauptsensor für die Berechnung.",
+    "editor.consumer_1_hide_pipe": "Pipe bei geringer Leistung ausblenden",
+    "editor.consumer_pipe_threshold": "Pipe-Schwellenwert (Watt)",
+    "editor.text_color": "Text",
+    "editor.icon_color": "Icon",
   },
   card: {
     "card.label_solar": "Solar",
@@ -55,8 +62,8 @@ const lang_de = {
     "card.label_battery": "Batterie",
     "card.label_house": "Verbrauch",
     "card.label_car": "E-Auto",
-    "card.label_import": "Import",
-    "card.label_export": "Export",
+    "card.label_heater": "Heizung",
+    "card.label_pool": "Pool",
   }
 };
 const lang_en = {
@@ -74,7 +81,7 @@ const lang_en = {
     "editor.label_toggle": "Show Label in Bubble",
     "editor.compact_view": "Compact View (evcc)",
     "editor.hide_inactive": "Hide Inactive Pipes",
-    "editor.entity": "Entity (Watt)",
+    "editor.entity": "Combined Battery Sensor (W)",
     "editor.label": "Label",
     "editor.icon": "Icon",
     "editor.back": "Back",
@@ -95,7 +102,7 @@ const lang_en = {
     "editor.hide_consumer_icons": "Hide Consumer Icons",
     "editor.invert_consumer_1": "Invert Sensor Value (+/-)",
     "editor.secondary_sensor": "Secondary Sensor (display only)",
-    "editor.grid_to_battery_sensor": "Grid to Battery Sensor (Watt)",
+    "editor.grid_to_battery_sensor": "Grid to Battery Sensor (W, optional)",
     "editor.grid_to_battery_hint": "Optional: separate sensor for grid-to-battery flow. If empty, the value is calculated automatically.",
     "editor.grid_combined_sensor": "Combined Grid Sensor (W, Optional)",
     "editor.grid_combined_hint": "Single sensor for import AND export: positive = import, negative = export. Overrides combined import/export sensor.",
@@ -104,6 +111,13 @@ const lang_en = {
     "editor.export_color": "Export Color",
     "editor.consumer_unit_kw": "Sensor reports in kW",
     "editor.show_consumer_always": "Show Consumers at zero watts",
+    "editor.battery_charge_sensor": "Battery Charge Sensor (W, Optional)",
+    "editor.battery_discharge_sensor": "Battery Discharge Sensor (W, Optional)",
+    "editor.battery_separate_hint": "Optional: Separate sensors for charge/discharge. Override the main sensor for calculations.",
+    "editor.consumer_1_hide_pipe": "Hide pipe at low power",
+    "editor.consumer_pipe_threshold": "Pipe Threshold (Watts)",
+    "editor.text_color": "Text Color",
+    "editor.icon_color": "Icon Color",
   },
   card: {
     "card.label_solar": "Solar",
@@ -111,8 +125,8 @@ const lang_en = {
     "card.label_battery": "Battery",
     "card.label_house": "Consumption",
     "card.label_car": "Car",
-    "card.label_import": "Import",
-    "card.label_export": "Export",
+    "card.label_heater": "Heater",
+    "card.label_pool": "Pool",
   }
 };
 
@@ -172,7 +186,7 @@ class PowerFluxCardEditor extends LitElement {
         if (!this._config || !this.hass) return;
 
         const target = ev.target;
-        const key = target.configValue || this._currentConfigValue;
+        const key = target.configValue;
 
         let value;
         if (target.tagName === 'HA-SWITCH') {
@@ -191,6 +205,7 @@ class PowerFluxCardEditor extends LitElement {
             const entityKeys = [
                 'solar', 'grid', 'grid_export', 'grid_combined',
                 'battery', 'battery_soc', 'grid_to_battery',
+                'battery_charge', 'battery_discharge',
                 'house',
                 'consumer_1', 'consumer_2', 'consumer_3',
                 'secondary_solar', 'secondary_grid', 'secondary_battery',
@@ -286,31 +301,30 @@ class PowerFluxCardEditor extends LitElement {
         `;
     }
 
-    _renderColorPickerDual(bubbleKey, pipeKey, defaultColor) {
-        const bubbleColor = this._config[bubbleKey] || defaultColor;
-        const pipeColor = this._config[pipeKey] || defaultColor;
-        const hasBubbleCustom = !!this._config[bubbleKey];
-        const hasPipeCustom = !!this._config[pipeKey];
+    _renderColorPickerQuad(bubbleKey, pipeKey, textKey, iconKey, defaultColor) {
+        const items = [
+            { key: bubbleKey, label: this._localize('editor.color_picker'), default: defaultColor },
+        ];
+        if (pipeKey) items.push({ key: pipeKey, label: this._localize('editor.pipe_color'), default: defaultColor });
+        items.push({ key: textKey, label: this._localize('editor.text_color'), default: defaultColor });
+        items.push({ key: iconKey, label: this._localize('editor.icon_color'), default: defaultColor });
         return html`
-            <div class="color-picker-dual">
-                <div class="color-picker-row">
-                    <input type="color" 
-                           .value=${bubbleColor}
-                           @input=${(e) => this._colorChanged(bubbleKey, e)}>
-                    <span class="color-label">${this._localize('editor.color_picker')}</span>
-                    ${hasBubbleCustom ? html`<ha-icon class="color-reset-btn" 
-                        icon="mdi:refresh" 
-                        @click=${() => this._resetColor(bubbleKey)}></ha-icon>` : ''}
-                </div>
-                <div class="color-picker-row">
-                    <input type="color" 
-                           .value=${pipeColor}
-                           @input=${(e) => this._colorChanged(pipeKey, e)}>
-                    <span class="color-label">${this._localize('editor.pipe_color')}</span>
-                    ${hasPipeCustom ? html`<ha-icon class="color-reset-btn" 
-                        icon="mdi:refresh" 
-                        @click=${() => this._resetColor(pipeKey)}></ha-icon>` : ''}
-                </div>
+            <div class="color-picker-quad">
+                ${items.map(item => {
+                    const color = this._config[item.key] || item.default;
+                    const hasCustom = !!this._config[item.key];
+                    return html`
+                        <div class="color-picker-row">
+                            <input type="color" 
+                                   .value=${color}
+                                   @input=${(e) => this._colorChanged(item.key, e)}>
+                            <span class="color-label">${item.label}</span>
+                            ${hasCustom ? html`<ha-icon class="color-reset-btn" 
+                                icon="mdi:refresh" 
+                                @click=${() => this._resetColor(item.key)}></ha-icon>` : ''}
+                        </div>
+                    `;
+                })}
             </div>
         `;
     }
@@ -422,8 +436,8 @@ class PowerFluxCardEditor extends LitElement {
           -webkit-appearance: none;
           border: 2px solid var(--divider-color);
           border-radius: 50%;
-          width: 36px;
-          height: 36px;
+          width: 30px;
+          height: 30px;
           padding: 2px;
           cursor: pointer;
           background: transparent;
@@ -447,11 +461,11 @@ class PowerFluxCardEditor extends LitElement {
       .color-reset-btn:hover {
           color: var(--primary-color);
       }
-      .color-picker-dual {
+      .color-picker-quad {
           display: flex;
           gap: 8px;
       }
-      .color-picker-dual .color-picker-row {
+      .color-picker-quad .color-picker-row {
           flex: 1;
       }
     `;
@@ -492,7 +506,7 @@ class PowerFluxCardEditor extends LitElement {
 
         ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_solar || "", 'secondary_solar', this._localize('editor.secondary_sensor'))}
 
-        ${this._renderColorPickerDual('color_solar', 'color_pipe_solar', '#ffdd00')}
+        ${this._renderColorPickerQuad('color_solar', 'color_pipe_solar', 'color_text_solar', 'color_icon_solar', '#ffdd00')}
 
         <div class="separator"></div>
 
@@ -560,7 +574,7 @@ class PowerFluxCardEditor extends LitElement {
 
         ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_grid || "", 'secondary_grid', this._localize('editor.secondary_sensor'))}
 
-        ${this._renderColorPickerDual('color_grid', 'color_pipe_grid', '#3b82f6')}
+        ${this._renderColorPickerQuad('color_grid', 'color_pipe_grid', 'color_text_grid', 'color_icon_grid', '#3b82f6')}
 
         ${this._renderColorPicker('color_export', this._localize('editor.export_color'), '#ff3333')}
 
@@ -597,13 +611,14 @@ class PowerFluxCardEditor extends LitElement {
         
         ${this._renderEntitySelector(entitySelectorSchema, entities.battery, 'battery', this._localize('editor.entity'))}
 
-        ${this._renderEntitySelector(entitySelectorSchema, entities.battery_soc, 'battery_soc', this._localize('editor.battery_soc_label'))}
+        <div class="separator"></div>
 
-        ${this._renderEntitySelector(entitySelectorSchema, entities.grid_to_battery || "", 'grid_to_battery', this._localize('editor.grid_to_battery_sensor'))}
         <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
-            ${this._localize('editor.grid_to_battery_hint')}
+            ${this._localize('editor.battery_separate_hint')}
         </div>
-        
+        ${this._renderEntitySelector(entitySelectorSchema, entities.battery_charge || "", 'battery_charge', this._localize('editor.battery_charge_sensor'))}
+        ${this._renderEntitySelector(entitySelectorSchema, entities.battery_discharge || "", 'battery_discharge', this._localize('editor.battery_discharge_sensor'))}
+
         <div class="separator"></div>
 
         <ha-selector
@@ -624,9 +639,20 @@ class PowerFluxCardEditor extends LitElement {
             @value-changed=${this._valueChanged}
         ></ha-selector>
 
+        <div class="separator"></div>
+
+        ${this._renderEntitySelector(entitySelectorSchema, entities.battery_soc, 'battery_soc', this._localize('editor.battery_soc_label'))}
+                        
+        <div class="separator"></div>
+
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+            ${this._localize('editor.grid_to_battery_hint')}
+        </div>
+        ${this._renderEntitySelector(entitySelectorSchema, entities.grid_to_battery || "", 'grid_to_battery', this._localize('editor.grid_to_battery_sensor'))}
+
         ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_battery || "", 'secondary_battery', this._localize('editor.secondary_sensor'))}
 
-        ${this._renderColorPickerDual('color_battery', 'color_pipe_battery', '#00ff88')}
+        ${this._renderColorPickerQuad('color_battery', 'color_pipe_battery', 'color_text_battery', 'color_icon_battery', '#00ff88')}
         
         <div class="separator"></div>
         
@@ -674,6 +700,8 @@ class PowerFluxCardEditor extends LitElement {
              <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
                 ${this._localize('editor.house_sensor_hint')}
             </div>
+
+            ${this._renderColorPickerQuad('color_house', null, 'color_text_house', 'color_icon_house', '#ff0080')}
         </div>
 
         <div class="consumer-group">
@@ -707,6 +735,26 @@ class PowerFluxCardEditor extends LitElement {
                 ></ha-switch>
             </div>
 
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_1_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_1_hide_pipe === true}
+                    .configValue=${'consumer_1_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_1_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_1_pipe_threshold !== undefined ? this._config.consumer_1_pipe_threshold : 0}
+                .configValue=${'consumer_1_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
@@ -718,7 +766,7 @@ class PowerFluxCardEditor extends LitElement {
 
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_1 || "", 'secondary_consumer_1', this._localize('editor.secondary_sensor'))}
 
-            ${this._renderColorPickerDual('color_consumer_1', 'color_pipe_consumer_1', '#a855f7')}
+            ${this._renderColorPickerQuad('color_consumer_1', 'color_pipe_consumer_1', 'color_text_consumer_1', 'color_icon_consumer_1', '#a855f7')}
         </div>
 
         <div class="consumer-group">
@@ -754,7 +802,7 @@ class PowerFluxCardEditor extends LitElement {
 
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_2 || "", 'secondary_consumer_2', this._localize('editor.secondary_sensor'))}
 
-            ${this._renderColorPickerDual('color_consumer_2', 'color_pipe_consumer_2', '#f97316')}
+            ${this._renderColorPickerQuad('color_consumer_2', 'color_pipe_consumer_2', 'color_text_consumer_2', 'color_icon_consumer_2', '#f97316')}
         </div>
 
         <div class="consumer-group">
@@ -790,7 +838,7 @@ class PowerFluxCardEditor extends LitElement {
 
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_3 || "", 'secondary_consumer_3', this._localize('editor.secondary_sensor'))}
 
-            ${this._renderColorPickerDual('color_consumer_3', 'color_pipe_consumer_3', '#06b6d4')}
+            ${this._renderColorPickerQuad('color_consumer_3', 'color_pipe_consumer_3', 'color_text_consumer_3', 'color_icon_consumer_3', '#06b6d4')}
         </div>
       `;
     }
@@ -955,7 +1003,7 @@ customElements.define("power-flux-card-editor", PowerFluxCardEditor);
 
 
 console.log(
-  "%c⚡ Power Flux Card v_2.1 ready",
+  "%c⚡ Power Flux Card v_2.4 ready",
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
@@ -996,6 +1044,8 @@ console.log(
         consumer_2_unit_kw: false,
         consumer_3_unit_kw: false,
         show_consumer_always: false,
+        consumer_1_hide_pipe: false,
+        consumer_1_pipe_threshold: 0,
         show_donut_border: false,
         show_neon_glow: true,
         show_comet_tail: false,
@@ -1018,6 +1068,8 @@ console.log(
           grid_combined: "",
           battery: "",
           battery_soc: "",
+          battery_charge: "",
+          battery_discharge: "",
           house: "",
           consumer_1: "",
           consumer_2: "",
@@ -1080,6 +1132,21 @@ console.log(
           'color_pipe_consumer_1': '--pipe-consumer-1-color',
           'color_pipe_consumer_2': '--pipe-consumer-2-color',
           'color_pipe_consumer_3': '--pipe-consumer-3-color',
+          'color_house': '--neon-pink',
+          'color_icon_solar': '--icon-solar-color',
+          'color_icon_grid': '--icon-grid-color',
+          'color_icon_battery': '--icon-battery-color',
+          'color_icon_house': '--icon-house-color',
+          'color_icon_consumer_1': '--icon-consumer-1-color',
+          'color_icon_consumer_2': '--icon-consumer-2-color',
+          'color_icon_consumer_3': '--icon-consumer-3-color',
+          'color_text_solar': '--text-solar-color',
+          'color_text_grid': '--text-grid-color',
+          'color_text_battery': '--text-battery-color',
+          'color_text_house': '--text-house-color',
+          'color_text_consumer_1': '--text-consumer-1-color',
+          'color_text_consumer_2': '--text-consumer-2-color',
+          'color_text_consumer_3': '--text-consumer-3-color',
         };
         for (const [configKey, cssVar] of Object.entries(colorMap)) {
           if (this.config[configKey]) {
@@ -1107,7 +1174,6 @@ console.log(
         --neon-green: #00ff88;
         --neon-pink: #ff0080;
         --neon-red: #ff3333;
-        --grid-grey: #9e9e9e; 
         --export-purple: #a855f7;
         --export-color: #ff3333;
         --consumer-1-color: #a855f7;
@@ -1119,6 +1185,20 @@ console.log(
         --pipe-consumer-1-color: var(--consumer-1-color);
         --pipe-consumer-2-color: var(--consumer-2-color);
         --pipe-consumer-3-color: var(--consumer-3-color);
+        --icon-solar-color: var(--neon-yellow);
+        --icon-grid-color: var(--neon-blue);
+        --icon-battery-color: var(--neon-green);
+        --icon-house-color: var(--neon-pink);
+        --icon-consumer-1-color: var(--consumer-1-color);
+        --icon-consumer-2-color: var(--consumer-2-color);
+        --icon-consumer-3-color: var(--consumer-3-color);
+        --text-solar-color: var(--neon-yellow);
+        --text-grid-color: var(--neon-blue);
+        --text-battery-color: var(--neon-green);
+        --text-house-color: var(--neon-pink);
+        --text-consumer-1-color: var(--consumer-1-color);
+        --text-consumer-2-color: var(--consumer-2-color);
+        --text-consumer-3-color: var(--consumer-3-color);
         --flow-dasharray: 0 380; 
       }
       :host([data-theme-light]) {
@@ -1127,7 +1207,6 @@ console.log(
         --neon-green: #059669;
         --neon-pink: #db2777;
         --neon-red: #dc2626;
-        --grid-grey: #6b7280;
         --export-purple: #7c3aed;
         --export-color: #dc2626;
         --consumer-1-color: #7c3aed;
@@ -1208,11 +1287,6 @@ console.log(
         overflow: hidden;
       }
       
-      /* Source Colors */
-      .src-solar { background: var(--neon-yellow); color: black; }
-      .src-grid { background: var(--neon-blue); color: black; }
-      .src-battery { background: var(--neon-green); color: black; }
-
       /* --- STANDARD VIEW STYLES --- */
       .scale-wrapper {
         width: 420px; 
@@ -1346,7 +1420,7 @@ console.log(
       @keyframes dash { to { stroke-dashoffset: -1500; } }
 
       .flow-text {
-        font-size: 10px; font-weight: bold; text-anchor: middle; fill: #fff; filter: transition: opacity 0.3s ease;
+        font-size: 10px; font-weight: bold; text-anchor: middle; fill: #fff; transition: opacity 0.3s ease;
       }
       .flow-text.no-shadow { filter: none; }
       .text-solar { fill: var(--pipe-solar-color); }
@@ -1360,35 +1434,36 @@ console.log(
     _renderIcon(type, val = 0, colorOverride = null) {
       if (type === 'solar') {
         const animate = Math.round(val) > 0 ? 'spin-slow' : '';
-        const color = colorOverride || 'var(--neon-yellow)';
+        const color = colorOverride || 'var(--icon-solar-color)';
         return html`<svg class="icon-svg ${animate}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
       }
       if (type === 'grid') {
         const animate = Math.round(val) > 0 ? 'pulse' : '';
-        const color = colorOverride || 'var(--neon-blue)';
+        const color = colorOverride || 'var(--icon-grid-color)';
         return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L12 22"></path><path d="M5 8L19 8"></path><path d="M4 14L20 14"></path><path d="M2 22L22 22"></path><circle class="${animate}" cx="12" cy="4" r="4" fill="${color}" stroke="none"></circle></svg>`;
       }
       if (type === 'battery') {
         const soc = Math.min(Math.max(val, 0), 100) / 100;
         const rectHeight = 14 * soc;
         const rectY = 18 - rectHeight;
-        const rectColor = soc > 0.2 ? 'var(--neon-green)' : 'var(--neon-red)';
-        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="var(--neon-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" ry="2"></rect><line x1="10" y1="2" x2="14" y2="2"></line><rect x="7" y="${rectY}" width="10" height="${rectHeight}" fill="${rectColor}" stroke="none"></rect></svg>`;
+        const strokeColor = colorOverride || 'var(--icon-battery-color)';
+        const rectColor = soc > 0.2 ? strokeColor : 'var(--neon-red)';
+        return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" ry="2"></rect><line x1="10" y1="2" x2="14" y2="2"></line><rect x="7" y="${rectY}" width="10" height="${rectHeight}" fill="${rectColor}" stroke="none"></rect></svg>`;
       }
       if (type === 'house') {
-        const strokeColor = colorOverride || 'var(--neon-pink)';
+        const strokeColor = colorOverride || 'var(--icon-house-color)';
         return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
       }
       if (type === 'car') {
-        const c = colorOverride || 'var(--consumer-1-color)';
+        const c = colorOverride || 'var(--icon-consumer-1-color)';
         return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M14 17h-5"></path></svg>`;
       }
       if (type === 'heater') {
-        const c = colorOverride || 'var(--consumer-2-color)';
+        const c = colorOverride || 'var(--icon-consumer-2-color)';
         return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a4 4 0 0 0 4-4V8a4 4 0 0 0-8 0v8a4 4 0 0 0 4 4z"></path><path class="float" style="animation-delay: 0s;" d="M8 4c0-1.5 1-2 2-2s2 .5 2 2"></path><path class="float" style="animation-delay: 0.5s;" d="M14 4c0-1.5 1-2 2-2s2 .5 2 2"></path></svg>`;
       }
       if (type === 'pool') {
-        const c = colorOverride || 'var(--consumer-3-color)';
+        const c = colorOverride || 'var(--icon-consumer-3-color)';
         return html`<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path class="float" d="M2 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"></path><path d="M12 2v6"></path><path d="M9 5h6"></path></svg>`;
       }
       return html``;
@@ -1498,8 +1573,12 @@ console.log(
         gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
       }
 
-      const batteryCharge = battery > 0 ? battery : 0;
-      const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
+      // Check for separate battery charge/discharge sensors
+      const hasBattChargeSensor = !!(entities.battery_charge && entities.battery_charge !== "");
+      const hasBattDischargeSensor = !!(entities.battery_discharge && entities.battery_discharge !== "");
+
+      const batteryCharge = hasBattChargeSensor ? Math.abs(getVal(entities.battery_charge)) : (battery > 0 ? battery : 0);
+      const batteryDischarge = hasBattDischargeSensor ? Math.abs(getVal(entities.battery_discharge)) : (battery < 0 ? Math.abs(battery) : 0);
 
       let solarToBatt = 0;
       let gridToBatt = 0;
@@ -1593,9 +1672,9 @@ console.log(
         const path = this._createBracketPath(s.startPx, s.widthPx, 'down');
         let icon = '';
         let iconColor = '';
-        if (s.type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--neon-yellow)'; }
-        if (s.type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--neon-blue)'; }
-        if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--neon-green)'; }
+        if (s.type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--icon-solar-color)'; }
+        if (s.type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--icon-grid-color)'; }
+        if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--icon-battery-color)'; }
 
         return { path, width: s.widthPx, center: s.startPx + (s.widthPx / 2), icon, iconColor, val: s.val, entityId: s.entityId };
       });
@@ -1613,10 +1692,10 @@ console.log(
         let icon = '';
         let iconColor = '';
 
-        if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--primary-text-color)'; }
-        if (type === 'car') { icon = 'mdi:car-electric'; iconColor = this._getConsumerColor(1); }
-        if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-purple)'; }
-        if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--neon-green)'; }
+        if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--icon-house-color)'; }
+        if (type === 'car') { icon = 'mdi:car-electric'; iconColor = 'var(--icon-consumer-1-color)'; }
+        if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-color)'; }
+        if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--icon-battery-color)'; }
 
         const path = this._createBracketPath(bottomX, width, 'up');
         bottomBrackets.push({
@@ -1659,14 +1738,19 @@ console.log(
 
                 <!-- MAIN BAR -->
                 <div class="compact-bar-wrapper">
-                    ${barSegments.map(s => html`
+                    ${barSegments.map(s => {
+                        const textColor = s.type === 'solar' && this.config.color_text_solar ? 'var(--text-solar-color)'
+                          : s.type === 'grid' && this.config.color_text_grid ? 'var(--text-grid-color)'
+                          : s.type === 'battery' && this.config.color_text_battery ? 'var(--text-battery-color)'
+                          : (s.color === 'var(--export-purple)' ? 'white' : 'black');
+                        return html`
                         <div class="bar-segment" 
-                             style="width: ${s.widthPct}%; background: ${s.color}; color: ${s.color === 'var(--export-purple)' ? 'white' : 'black'}; cursor: ${s.entityId ? 'pointer' : 'default'};"
+                             style="width: ${s.widthPct}%; background: ${s.color}; color: ${textColor}; cursor: ${s.entityId ? 'pointer' : 'default'};"
                              title="${this._formatPower(s.val)}"
                              @click=${() => s.entityId && this._handleClick(s.entityId)}>
                             ${s.widthPx > 35 ? this._formatPower(s.val) : ''}
                         </div>
-                    `)}
+                    `})}
                 </div>
 
                 <!-- BOTTOM BRACKETS -->
@@ -1760,9 +1844,9 @@ console.log(
       const textClass = showNeonGlow ? 'flow-text' : 'flow-text no-shadow';
 
       // Custom Labels for Consumers
-      const labelC1 = this.config.consumer_1_label || "E-Auto";
-      const labelC2 = this.config.consumer_2_label || "Heizung";
-      const labelC3 = this.config.consumer_3_label || "Pool";
+      const labelC1 = this.config.consumer_1_label || this._localize('card.label_car');
+      const labelC2 = this.config.consumer_2_label || this._localize('card.label_heater');
+      const labelC3 = this.config.consumer_3_label || this._localize('card.label_pool');
 
       const getVal = (entity) => {
         const state = this.hass.states[entity];
@@ -1783,6 +1867,11 @@ console.log(
       const showC2 = (entities.consumer_2 && (alwaysShowConsumer || Math.round(c2Val) > 0));
       const showC3 = (entities.consumer_3 && (alwaysShowConsumer || Math.round(c3Val) > 0));
       const anyBottomVisible = showC1 || showC2 || showC3;
+
+      // Consumer 1 pipe threshold
+      const hideC1Pipe = this.config.consumer_1_hide_pipe === true;
+      const c1PipeThreshold = this.config.consumer_1_pipe_threshold || 0;
+      const c1PipeActive = showC1 && (!hideC1Pipe || c1Val >= c1PipeThreshold);
 
       const solar = hasSolar ? getVal(entities.solar) : 0;
       const gridCombinedVal = hasGridCombined ? getVal(entities.grid_combined) : 0;
@@ -1813,8 +1902,12 @@ console.log(
         }
       }
 
-      const batteryCharge = battery > 0 ? battery : 0;
-      const batteryDischarge = battery < 0 ? Math.abs(battery) : 0;
+      // Check for separate battery charge/discharge sensors
+      const hasBattChargeSensor = !!(entities.battery_charge && entities.battery_charge !== "");
+      const hasBattDischargeSensor = !!(entities.battery_discharge && entities.battery_discharge !== "");
+
+      const batteryCharge = hasBattChargeSensor ? Math.abs(getVal(entities.battery_charge)) : (battery > 0 ? battery : 0);
+      const batteryDischarge = hasBattDischargeSensor ? Math.abs(getVal(entities.battery_discharge)) : (battery < 0 ? Math.abs(battery) : 0);
 
       let solarToBatt = 0;
       let gridToBatt = 0;
@@ -1840,6 +1933,9 @@ console.log(
       const solarToHouse = Math.max(0, solarVal - solarToBatt - gridExport);
       const gridToHouse = Math.max(0, gridImport - gridToBatt);
       const house = solarToHouse + gridToHouse + batteryDischarge;
+
+      // Use house entity for display if defined, otherwise use calculated value
+      const houseDisplay = (entities.house && entities.house !== "") ? getVal(entities.house) : house;
 
       const isTopArcActive = (solarToBatt > 0);
       const topShift = (isTopArcActive || (!hideInactive && hasSolar && hasBattery)) ? 0 : 50;
@@ -1942,8 +2038,10 @@ console.log(
         }
       }
 
-      const solarColor = isSolarActive ? 'var(--neon-yellow)' : 'var(--secondary-text-color)';
+      const solarColor = isSolarActive ? 'var(--icon-solar-color)' : 'var(--secondary-text-color)';
       const gridColor = isGridExporting ? 'var(--export-color)' : (isGridActive ? 'var(--neon-blue)' : 'var(--secondary-text-color)');
+      const gridIconColor = (isGridActive && this.config.color_icon_grid) ? 'var(--icon-grid-color)' : gridColor;
+      const gridTextColor = (isGridActive && this.config.color_text_grid) ? 'var(--text-grid-color)' : gridColor;
 
       const getAnimStyle = (val) => {
         if (val <= 1) return "opacity: 0;";
@@ -2023,13 +2121,11 @@ console.log(
 
       const renderMainIcon = (type, val, customIcon, color = null) => {
         if (customIcon) {
-          const style = color ? `color: ${color};` : (type === 'solar' ? 'color: var(--neon-yellow);' : (type === 'grid' ? 'color: var(--neon-blue);' : (type === 'battery' ? 'color: var(--neon-green);' : '')));
+          const style = color ? `color: ${color};` : (type === 'solar' ? 'color: var(--icon-solar-color);' : (type === 'grid' ? 'color: var(--icon-grid-color);' : (type === 'battery' ? 'color: var(--icon-battery-color);' : (type === 'house' ? 'color: var(--icon-house-color);' : ''))));
           return html`<ha-icon icon="${customIcon}" class="icon-custom" style="${style}"></ha-icon>`;
         }
         return this._renderIcon(type, val, color);
       };
-
-      const getCustomClass = (icon) => icon ? 'has-custom-icon' : '';
 
       const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
         if (!isVisible) return html``;
@@ -2037,13 +2133,12 @@ console.log(
         const customIcon = this.config[`${configKey}_icon`];
         let iconContent;
 
-        const isCustom = !hideConsumerIcons && !!customIcon;
-        const dynamicClass = isCustom ? 'has-custom-icon' : '';
+        const iconColorVar = `var(--icon-${configKey.replace(/_/g, '-')}-color)`;
 
         if (hideConsumerIcons) {
           iconContent = html``;
         } else if (customIcon) {
-          iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${hexColor};"></ha-icon>`;
+          iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${iconColorVar};"></ha-icon>`;
         } else {
           iconContent = this._renderIcon(iconType, val);
         }
@@ -2051,12 +2146,16 @@ console.log(
         const secEntity = entities[`secondary_${configKey}`];
         const hasSecondary = !!(secEntity && secEntity !== "");
 
+        const textStyle = this.config[`color_text_${configKey}`]
+          ? `color: var(--text-${configKey.replace(/_/g, '-')}-color);`
+          : getConsumerColorStyle(hexColor);
+
         return html`
-            <div class="bubble ${cssClass} node ${cssClass.replace('c', 'node-c')} ${tintClass} ${dynamicClass} ${glowClass}"
+            <div class="bubble ${cssClass} ${cssClass.replace('c', 'node-c')} ${tintClass} ${glowClass}"
                 @click=${() => this._handleClick(entities[configKey])}>
                 ${iconContent}
                 ${renderSecondaryOrLabel(label, true, secEntity, hasSecondary)}
-                <div class="value" style="${getConsumerColorStyle(hexColor)}">${this._formatPower(val)}</div>
+                <div class="value" style="${textStyle}">${this._formatPower(val)}</div>
             </div>
         `;
       };
@@ -2086,7 +2185,9 @@ console.log(
       const pathHouseC2 = "M 210 310 L 210 370";
       const pathHouseC3 = "M 255 265 Q 370 265 370 370";
 
-      const houseTextStyle = houseTextCol ? `color: ${houseTextCol};` : '';
+      const houseTextStyle = this.config.color_text_house
+        ? 'color: var(--text-house-color);'
+        : (houseTextCol ? `color: ${houseTextCol};` : '');
       const dashArrayVal = showTail ? '30 360' : (showDashedLine ? '13 13' : '0 380');
       const strokeWidthVal = showDashedLine ? 4 : 8;
 
@@ -2107,7 +2208,7 @@ console.log(
                     
                     <path class="bg-path bg-battery" d="${pathBattHouse}" style="${getPipeStyle(batteryDischarge)} ${styleBattery}" />
 
-                    <path d="${pathHouseC1}" fill="none" stroke="${this._getConsumerPipeColor(1)}" stroke-width="6" style="${getConsumerPipeStyle(showC1, c1Val)}" />
+                    <path d="${pathHouseC1}" fill="none" stroke="${this._getConsumerPipeColor(1)}" stroke-width="6" style="${getConsumerPipeStyle(c1PipeActive, c1Val)}" />
                     <path d="${pathHouseC2}" fill="none" stroke="${this._getConsumerPipeColor(2)}" stroke-width="6" style="${getConsumerPipeStyle(showC2, c2Val)}" />
                     <path d="${pathHouseC3}" fill="none" stroke="${this._getConsumerPipeColor(3)}" stroke-width="6" style="${getConsumerPipeStyle(showC3, c3Val)}" />
 
@@ -2120,7 +2221,7 @@ console.log(
                     
                     <path class="flow-line flow-battery" d="${pathBattHouse}" style="${getAnimStyle(batteryDischarge)} ${styleBattery}" />
 
-                    <path class="flow-line" d="${pathHouseC1}" stroke="${this._getConsumerPipeColor(1)}" style="${getConsumerAnimStyle(showC1, c1Val)}" />
+                    <path class="flow-line" d="${pathHouseC1}" stroke="${this._getConsumerPipeColor(1)}" style="${getConsumerAnimStyle(c1PipeActive, c1Val)}" />
                     <path class="flow-line" d="${pathHouseC2}" stroke="${this._getConsumerPipeColor(2)}" style="${getConsumerAnimStyle(showC2, c2Val)}" />
                     <path class="flow-line" d="${pathHouseC3}" stroke="${this._getConsumerPipeColor(3)}" style="${getConsumerAnimStyle(showC3, c3Val)}" />
 
@@ -2136,39 +2237,39 @@ console.log(
                 </svg>
 
                 ${hasSolar ? html`
-                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node node-solar ${tintClass} ${isSolarActive ? glowClass : ''} ${getCustomClass(iconSolar)}"
+                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node-solar ${tintClass} ${isSolarActive ? glowClass : ''}"
                     @click=${() => this._handleClick(entities.solar)}>
                     ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
                     ${renderSecondaryOrLabel(labelSolarText, showLabelSolar, entities.secondary_solar, hasSecondarySolar)}
-                    <div class="value" style="${isSolarActive ? getColorStyle('--neon-yellow') : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
+                    <div class="value" style="${isSolarActive ? (this.config.color_text_solar ? 'color: var(--text-solar-color);' : getColorStyle('--neon-yellow')) : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
                 </div>` : ''}
                 
                 ${hasGrid ? html`
-                <div class="bubble ${isGridActive ? (isGridExporting ? 'grid exporting' : 'grid') : 'inactive'} node node-grid ${showDonut && isGridActive ? 'donut' : ''} ${tintClass} ${isGridActive ? glowClass : ''} ${getCustomClass(iconGrid)}"
+                <div class="bubble ${isGridActive ? (isGridExporting ? 'grid exporting' : 'grid') : 'inactive'} node-grid ${showDonut && isGridActive ? 'donut' : ''} ${tintClass} ${isGridActive ? glowClass : ''}"
                     style="${showDonut && isGridActive ? `--grid-gradient: ${gridGradientVal};` : ''}"
                     @click=${() => this._handleClick(entities.grid_combined || entities.grid)}>
-                    ${renderMainIcon('grid', isGridExporting ? gridExport : gridImport, iconGrid, gridColor)}
+                    ${renderMainIcon('grid', isGridExporting ? gridExport : gridImport, iconGrid, gridIconColor)}
                     ${renderSecondaryOrLabel(labelGridText, showLabelGrid, entities.secondary_grid, hasSecondaryGrid)}
-                    <div class="value" style="color: ${gridColor};">
+                    <div class="value" style="color: ${gridTextColor};">
                         ${isGridExporting ? html`<span class="direction-arrow">&#9650;</span>` : (isGridActive ? html`<span class="direction-arrow">&#9660;</span>` : '')}
                         ${this._formatPower(isGridExporting ? gridExport : gridImport)}
                     </div>
                 </div>` : ''}
                 
                 ${hasBattery ? html`
-                <div class="bubble battery node node-battery ${tintClass} ${glowClass} ${getCustomClass(iconBattery)}"
+                <div class="bubble battery node-battery ${tintClass} ${glowClass}"
                     @click=${() => this._handleClick(entities.battery)}>
                     ${renderMainIcon('battery', battSoc, iconBattery)}
                     ${renderSecondaryOrLabel(labelBatteryText, showLabelBattery, entities.secondary_battery, hasSecondaryBattery)}
-                    <div class="value" style="${getColorStyle('--neon-green')}">${Math.round(battSoc)}%</div>
+                    <div class="value" style="${this.config.color_text_battery ? 'color: var(--text-battery-color);' : getColorStyle('--neon-green')}">${Math.round(battSoc)}%</div>
                 </div>` : ''}
                 
-                <div class="bubble house node node-house ${showDonut ? 'donut' : ''} ${tintClass}" 
+                <div class="bubble house node-house ${showDonut ? 'donut' : ''} ${tintClass}" 
                     style="${houseBubbleStyle}"
                     @click=${() => this._handleClick(entities.house)}>
-                    ${renderMainIcon('house', 0, null, houseDominantColor)}
+                    ${renderMainIcon('house', 0, null, this.config.color_icon_house ? 'var(--icon-house-color)' : houseDominantColor)}
                     ${renderLabel(labelHouseText, showLabelHouse)}
-                    <div class="value" style="${houseTextStyle}">${this._formatPower(house)}</div>
+                    <div class="value" style="${houseTextStyle}">${this._formatPower(houseDisplay)}</div>
                 </div>
 
                 ${renderConsumer(showC1, 'c1', 'consumer_1', labelC1, 'car', c1Val, this._getConsumerColor(1))}
