@@ -47,7 +47,7 @@ export default {
     "editor.battery_charge_sensor": "Battery Charge Sensor (W, Optional)",
     "editor.battery_discharge_sensor": "Battery Discharge Sensor (W, Optional)",
     "editor.battery_separate_hint": "Optional: Separate sensors for charge/discharge. Override the main sensor for calculations.",
-    "editor.consumer_1_hide_pipe": "Hide pipe at low power",
+    "editor.consumer_hide_pipe": "Hide pipe at low power",
     "editor.consumer_pipe_threshold": "Pipe Threshold (Watts)",
     "editor.text_color": "Text Color",
     "editor.icon_color": "Icon Color",

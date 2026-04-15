@@ -52,7 +52,7 @@ const lang_de = {
     "editor.battery_charge_sensor": "Batterie-Ladung Sensor (W, Optional)",
     "editor.battery_discharge_sensor": "Batterie-Entladung Sensor (W, Optional)",
     "editor.battery_separate_hint": "Optional: Separate Sensoren für Laden/Entladen. Überschreiben den Hauptsensor für die Berechnung.",
-    "editor.consumer_1_hide_pipe": "Pipe bei geringer Leistung ausblenden",
+    "editor.consumer_hide_pipe": "Pipe bei geringer Leistung ausblenden",
     "editor.consumer_pipe_threshold": "Pipe-Schwellenwert (Watt)",
     "editor.text_color": "Text",
     "editor.icon_color": "Icon",
@@ -126,7 +126,7 @@ const lang_en = {
     "editor.battery_charge_sensor": "Battery Charge Sensor (W, Optional)",
     "editor.battery_discharge_sensor": "Battery Discharge Sensor (W, Optional)",
     "editor.battery_separate_hint": "Optional: Separate sensors for charge/discharge. Override the main sensor for calculations.",
-    "editor.consumer_1_hide_pipe": "Hide pipe at low power",
+    "editor.consumer_hide_pipe": "Hide pipe at low power",
     "editor.consumer_pipe_threshold": "Pipe Threshold (Watts)",
     "editor.text_color": "Text Color",
     "editor.icon_color": "Icon Color",
@@ -860,7 +860,7 @@ class PowerFluxCardEditor extends LitElement {
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-                <span>${this._localize('editor.consumer_1_hide_pipe')}</span>
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
                 <ha-switch
                     .checked=${this._config.consumer_1_hide_pipe === true}
                     .configValue=${'consumer_1_hide_pipe'}
@@ -924,6 +924,26 @@ class PowerFluxCardEditor extends LitElement {
                 ></ha-switch>
             </div>
 
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_2_hide_pipe === true}
+                    .configValue=${'consumer_2_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_2_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_2_pipe_threshold !== undefined ? this._config.consumer_2_pipe_threshold : 0}
+                .configValue=${'consumer_2_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_2 || "", 'secondary_consumer_2', this._localize('editor.secondary_sensor'))}
 
             ${this._renderColorPickerQuint('color_consumer_2', 'color_pipe_consumer_2', 'color_text_consumer_2', 'color_icon_consumer_2', 'color_secondary_consumer_2', '#f97316')}
@@ -956,6 +976,27 @@ class PowerFluxCardEditor extends LitElement {
                     @change=${this._valueChanged}
                 ></ha-switch>
             </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_3_hide_pipe === true}
+                    .configValue=${'consumer_3_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_3_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_3_pipe_threshold !== undefined ? this._config.consumer_3_pipe_threshold : 0}
+                .configValue=${'consumer_3_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+            
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_3 || "", 'secondary_consumer_3', this._localize('editor.secondary_sensor'))}
             ${this._renderColorPickerQuint('color_consumer_3', 'color_pipe_consumer_3', 'color_text_consumer_3', 'color_icon_consumer_3', 'color_secondary_consumer_3', '#06b6d4')}
         </div>
@@ -986,6 +1027,27 @@ class PowerFluxCardEditor extends LitElement {
                     @change=${this._valueChanged}
                 ></ha-switch>
             </div>
+     
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_4_hide_pipe === true}
+                    .configValue=${'consumer_4_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_4_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_4_pipe_threshold !== undefined ? this._config.consumer_4_pipe_threshold : 0}
+                .configValue=${'consumer_4_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_4 || "", 'secondary_consumer_4', this._localize('editor.secondary_sensor'))}
             ${this._renderColorPickerQuint('color_consumer_4', 'color_pipe_consumer_4', 'color_text_consumer_4', 'color_icon_consumer_4', 'color_secondary_consumer_4', '#eab308')}
         </div>
@@ -1016,6 +1078,27 @@ class PowerFluxCardEditor extends LitElement {
                     @change=${this._valueChanged}
                 ></ha-switch>
             </div>
+            
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_5_hide_pipe === true}
+                    .configValue=${'consumer_5_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_5_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_5_pipe_threshold !== undefined ? this._config.consumer_5_pipe_threshold : 0}
+                .configValue=${'consumer_5_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_consumer_5 || "", 'secondary_consumer_5', this._localize('editor.secondary_sensor'))}
             ${this._renderColorPickerQuint('color_consumer_5', 'color_pipe_consumer_5', 'color_text_consumer_5', 'color_icon_consumer_5', 'color_secondary_consumer_5', '#6366f1')}
         </div>
@@ -1235,6 +1318,14 @@ console.log(
         show_consumer_always: false,
         consumer_1_hide_pipe: false,
         consumer_1_pipe_threshold: 0,
+        consumer_2_hide_pipe: false,
+        consumer_2_pipe_threshold: 0,
+        consumer_3_hide_pipe: false,
+        consumer_3_pipe_threshold: 0,
+        consumer_4_hide_pipe: false,
+        consumer_4_pipe_threshold: 0,
+        consumer_5_hide_pipe: false,
+        consumer_5_pipe_threshold: 0,
         show_donut_border: false,
         show_neon_glow: true,
         show_comet_tail: false,
@@ -2228,17 +2319,38 @@ console.log(
       const c3Val = entities.consumer_3 ? getValKw(entities.consumer_3, this.config.consumer_3_unit_kw === true) : 0;
 
       const alwaysShowConsumer = this.config.show_consumer_always === true;
-      const showC1 = (entities.consumer_1 && (alwaysShowConsumer || Math.round(c1Val) > 0));
-      const showC2 = (entities.consumer_2 && (alwaysShowConsumer || Math.round(c2Val) > 0));
-      const showC3 = (entities.consumer_3 && (alwaysShowConsumer || Math.round(c3Val) > 0));
-      const showC4 = (entities.consumer_4 && (alwaysShowConsumer || Math.round(c4Val) > 0));
-      const showC5 = (entities.consumer_5 && (alwaysShowConsumer || Math.round(c5Val) > 0));
-      const anyBottomVisible = showC1 || showC2 || showC3 || showC4 || showC5;
 
       // Consumer 1 pipe threshold
       const hideC1Pipe = this.config.consumer_1_hide_pipe === true;
       const c1PipeThreshold = this.config.consumer_1_pipe_threshold || 0;
+      const showC1 = (entities.consumer_1 && (alwaysShowConsumer || Math.round(c1Val) > c1PipeThreshold));
       const c1PipeActive = showC1 && (!hideC1Pipe || c1Val >= c1PipeThreshold);
+
+      // Consumer 2 pipe threshold
+      const hideC2Pipe = this.config.consumer_2_hide_pipe === true;
+      const c2PipeThreshold = this.config.consumer_2_pipe_threshold || 0;
+      const showC2 = (entities.consumer_2 && (alwaysShowConsumer || Math.round(c2Val) > c2PipeThreshold));
+      const c2PipeActive = showC2 && (!hideC2Pipe || c2Val >= c2PipeThreshold);
+
+      // Consumer 3 pipe threshold
+      const hideC3Pipe = this.config.consumer_3_hide_pipe === true;
+      const c3PipeThreshold = this.config.consumer_3_pipe_threshold || 0;
+      const showC3 = (entities.consumer_3 && (alwaysShowConsumer || Math.round(c3Val) > c3PipeThreshold));
+      const c3PipeActive = showC3 && (!hideC3Pipe || c3Val >= c3PipeThreshold);
+
+      // Consumer 4 pipe threshold
+      const hideC4Pipe = this.config.consumer_4_hide_pipe === true;
+      const c4PipeThreshold = this.config.consumer_4_pipe_threshold || 0;
+      const showC4 = (entities.consumer_4 && (alwaysShowConsumer || Math.round(c4Val) > c4PipeThreshold));
+      const c4PipeActive = showC4 && (!hideC4Pipe || c4Val >= c4PipeThreshold);
+
+      // Consumer 5 pipe threshold
+      const hideC5Pipe = this.config.consumer_5_hide_pipe === true;
+      const c5PipeThreshold = this.config.consumer_5_pipe_threshold || 0;
+      const showC5 = (entities.consumer_5 && (alwaysShowConsumer || Math.round(c5Val) > c5PipeThreshold));
+      const c5PipeActive = showC5 && (!hideC5Pipe || c5Val >= c5PipeThreshold);
+      
+      const anyBottomVisible = showC1 || showC2 || showC3 || showC4 || showC5;
 
       const solar = hasSolar ? getValKw(entities.solar, this.config.solar_unit_kw === true) : 0;
       const gridCombinedVal = hasGridCombined ? getValKw(entities.grid_combined, this.config.grid_unit_kw === true) : 0;
@@ -2598,10 +2710,10 @@ console.log(
                     <path class="bg-path bg-battery" d="${pathHouseToBatt}" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getPipeStyle(batteryCharge, '--pipe-battery-opacity') + ' ' + styleBattery : 'display:none;'}" />
 
                     <path d="${pathHouseC1}" fill="none" stroke="${this._getConsumerPipeColor(1)}" stroke-width="6" style="${getConsumerPipeStyle(c1PipeActive, c1Val, 1)}" />
-                    <path d="${pathHouseC2}" fill="none" stroke="${this._getConsumerPipeColor(2)}" stroke-width="6" style="${getConsumerPipeStyle(showC2, c2Val, 2)}" />
-                    <path d="${pathHouseC3}" fill="none" stroke="${this._getConsumerPipeColor(3)}" stroke-width="6" style="${getConsumerPipeStyle(showC3, c3Val, 3)}" />
-                    <path d="${pathHouseC4}" fill="none" stroke="${this._getConsumerPipeColor(4)}" stroke-width="6" style="${getConsumerPipeStyle(showC4, c4Val, 4)}" />
-                    <path d="${pathHouseC5}" fill="none" stroke="${this._getConsumerPipeColor(5)}" stroke-width="6" style="${getConsumerPipeStyle(showC5, c5Val, 5)}" />
+                    <path d="${pathHouseC2}" fill="none" stroke="${this._getConsumerPipeColor(2)}" stroke-width="6" style="${getConsumerPipeStyle(c2PipeActive, c2Val, 2)}" />
+                    <path d="${pathHouseC3}" fill="none" stroke="${this._getConsumerPipeColor(3)}" stroke-width="6" style="${getConsumerPipeStyle(c3PipeActive, c3Val, 3)}" />
+                    <path d="${pathHouseC4}" fill="none" stroke="${this._getConsumerPipeColor(4)}" stroke-width="6" style="${getConsumerPipeStyle(c4PipeActive, c4Val, 4)}" />
+                    <path d="${pathHouseC5}" fill="none" stroke="${this._getConsumerPipeColor(5)}" stroke-width="6" style="${getConsumerPipeStyle(c5PipeActive, c5Val, 5)}" />
 
                     <path class="flow-line flow-solar" d="${pathSolarHouse}" style="${getAnimStyle(solarToHouse, '--pipe-solar-opacity')} ${styleSolar}" />
                     <path class="flow-line flow-solar" d="${pathSolarBatt}" style="${getAnimStyle(solarToBatt, '--pipe-solar-opacity')} ${styleSolarBatt}" />
@@ -2615,10 +2727,10 @@ console.log(
                     <path class="flow-line flow-battery" d="${pathHouseToBatt}" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getAnimStyle(batteryCharge, '--pipe-battery-opacity') + ' ' + styleBattery : 'display:none;'}" />
 
                     <path class="flow-line" d="${pathHouseC1}" stroke="${this._getConsumerPipeColor(1)}" style="${getConsumerAnimStyle(c1PipeActive, c1Val, 1)}" />
-                    <path class="flow-line" d="${pathHouseC2}" stroke="${this._getConsumerPipeColor(2)}" style="${getConsumerAnimStyle(showC2, c2Val, 2)}" />
-                    <path class="flow-line" d="${pathHouseC3}" stroke="${this._getConsumerPipeColor(3)}" style="${getConsumerAnimStyle(showC3, c3Val, 3)}" />
-                    <path class="flow-line" d="${pathHouseC4}" stroke="${this._getConsumerPipeColor(4)}" style="${getConsumerAnimStyle(showC4, c4Val, 4)}" />
-                    <path class="flow-line" d="${pathHouseC5}" stroke="${this._getConsumerPipeColor(5)}" style="${getConsumerAnimStyle(showC5, c5Val, 5)}" />
+                    <path class="flow-line" d="${pathHouseC2}" stroke="${this._getConsumerPipeColor(2)}" style="${getConsumerAnimStyle(c2PipeActive, c2Val, 2)}" />
+                    <path class="flow-line" d="${pathHouseC3}" stroke="${this._getConsumerPipeColor(3)}" style="${getConsumerAnimStyle(c3PipeActive, c3Val, 3)}" />
+                    <path class="flow-line" d="${pathHouseC4}" stroke="${this._getConsumerPipeColor(4)}" style="${getConsumerAnimStyle(c4PipeActive, c4Val, 4)}" />
+                    <path class="flow-line" d="${pathHouseC5}" stroke="${this._getConsumerPipeColor(5)}" style="${getConsumerAnimStyle(c5PipeActive, c5Val, 5)}" />
 
                     <text x="100" y="235" class="${textClass} text-solar" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
                     <text x="210" y="45" class="${textClass} text-solar" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>

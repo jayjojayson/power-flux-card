@@ -47,7 +47,7 @@ export default {
     "editor.battery_charge_sensor": "Batterie-Ladung Sensor (W, Optional)",
     "editor.battery_discharge_sensor": "Batterie-Entladung Sensor (W, Optional)",
     "editor.battery_separate_hint": "Optional: Separate Sensoren für Laden/Entladen. Überschreiben den Hauptsensor für die Berechnung.",
-    "editor.consumer_1_hide_pipe": "Pipe bei geringer Leistung ausblenden",
+    "editor.consumer_hide_pipe": "Pipe bei geringer Leistung ausblenden",
     "editor.consumer_pipe_threshold": "Pipe-Schwellenwert (Watt)",
     "editor.text_color": "Text",
     "editor.icon_color": "Icon",
