@@ -1978,7 +1978,7 @@ console.log(
         let iconColor = '';
 
         if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--icon-house-color)'; }
-        if (type === 'car') { icon = 'mdi:car-electric'; iconColor = 'var(--icon-consumer-1-color)'; }
+        if (type === 'car') { icon = this.config.consumer_1_icon || 'mdi:car-electric'; iconColor = 'var(--icon-consumer-1-color)'; }
         if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-color)'; }
         if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--icon-battery-color)'; }
 
@@ -2094,7 +2094,7 @@ console.log(
                         </div>` : ''}
                         ${evPower > 0 ? html`
                         <div class="compact-detail-item" @click=${() => entities.consumer_1 && this._handleClick(entities.consumer_1)} style="cursor: ${entities.consumer_1 ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:car-electric" style="color: var(--icon-consumer-1-color);"></ha-icon>
+                            <ha-icon icon="${this.config.consumer_1_icon || 'mdi:car-electric'}" style="color: var(--icon-consumer-1-color);"></ha-icon>
                             <span class="compact-detail-label">${this.config.consumer_1_label || 'EV'}</span>
                             <span class="compact-detail-value" style="color: var(--consumer-1-color);">${this._formatPower(evPower)}</span>
                         </div>` : ''}
