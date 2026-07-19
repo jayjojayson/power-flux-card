@@ -92,6 +92,12 @@ class PowerFluxCardEditor extends LitElement {
                 if (key === 'show_dashed_line' && value === true) {
                     newConfig.show_comet_tail = false;
                 }
+                if (key === 'horizontal_view' && value === true) {
+                    newConfig.diamond_view = false;
+                }
+                if (key === 'diamond_view' && value === true) {
+                    newConfig.horizontal_view = false;
+                }
             }
 
             this._config = newConfig;
@@ -373,7 +379,47 @@ class PowerFluxCardEditor extends LitElement {
           width: 26px;
           height: 26px;
       }
+      .option-group {
+          border: 1px solid var(--divider-color);
+          border-radius: 12px;
+          padding: 4px 16px 10px;
+          margin-bottom: 14px;
+          background: rgba(var(--rgb-primary-text-color, 255, 255, 255), 0.03);
+      }
+      .option-group-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-weight: bold;
+          padding: 10px 0 8px;
+          border-bottom: 1px solid var(--divider-color);
+          margin-bottom: 4px;
+      }
+      .option-group-title ha-icon {
+          --mdc-icon-size: 18px;
+          color: var(--primary-color);
+      }
+      .option-group .switch-row {
+          padding: 6px 0;
+          margin-top: 0;
+      }
+      .option-group ha-selector {
+          margin-top: 8px;
+          margin-bottom: 4px;
+      }
     `;
+    }
+
+    _renderSwitch(configKey, labelKey, checked) {
+        return html`
+        <div class="switch-row">
+            <ha-switch
+                .checked=${checked}
+                .configValue=${configKey}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize(labelKey)}</div>
+        </div>`;
     }
 
     // --- SUBVIEW RENDERING ---
@@ -512,7 +558,16 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_flow_rate_grid !== false} 
+                .checked=${this._config.invert_grid === true}
+                .configValue=${'invert_grid'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.invert_grid')}</div>
+        </div>
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.show_flow_rate_grid !== false}
                 .configValue=${'show_flow_rate_grid'}
                 @change=${this._valueChanged}
             ></ha-switch>
@@ -691,7 +746,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-                <span>${this._localize('editor.invert_consumer_1')}</span>
+                <span>${this._localize('editor.invert_consumer')}</span>
                 <ha-switch
                     .checked=${this._config.invert_consumer_1 === true}
                     .configValue=${'invert_consumer_1'}
@@ -700,7 +755,7 @@ class PowerFluxCardEditor extends LitElement {
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-                <span>${this._localize('editor.consumer_1_hide_pipe')}</span>
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
                 <ha-switch
                     .checked=${this._config.consumer_1_hide_pipe === true}
                     .configValue=${'consumer_1_hide_pipe'}
@@ -755,6 +810,35 @@ class PowerFluxCardEditor extends LitElement {
                 @value-changed=${this._valueChanged}
             ></ha-selector>
 
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.invert_consumer')}</span>
+                <ha-switch
+                    .checked=${this._config.invert_consumer_2 === true}
+                    .configValue=${'invert_consumer_2'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_2_hide_pipe === true}
+                    .configValue=${'consumer_2_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_2_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_2_pipe_threshold !== undefined ? this._config.consumer_2_pipe_threshold : 0}
+                .configValue=${'consumer_2_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
@@ -788,6 +872,36 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.invert_consumer')}</span>
+                <ha-switch
+                    .checked=${this._config.invert_consumer_3 === true}
+                    .configValue=${'invert_consumer_3'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_3_hide_pipe === true}
+                    .configValue=${'consumer_3_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_3_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_3_pipe_threshold !== undefined ? this._config.consumer_3_pipe_threshold : 0}
+                .configValue=${'consumer_3_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
@@ -818,6 +932,36 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.invert_consumer')}</span>
+                <ha-switch
+                    .checked=${this._config.invert_consumer_4 === true}
+                    .configValue=${'invert_consumer_4'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_4_hide_pipe === true}
+                    .configValue=${'consumer_4_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_4_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_4_pipe_threshold !== undefined ? this._config.consumer_4_pipe_threshold : 0}
+                .configValue=${'consumer_4_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
@@ -848,6 +992,36 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.icon')}
                 @value-changed=${this._valueChanged}
             ></ha-selector>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.invert_consumer')}</span>
+                <ha-switch
+                    .checked=${this._config.invert_consumer_5 === true}
+                    .configValue=${'invert_consumer_5'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                <span>${this._localize('editor.consumer_hide_pipe')}</span>
+                <ha-switch
+                    .checked=${this._config.consumer_5_hide_pipe === true}
+                    .configValue=${'consumer_5_hide_pipe'}
+                    @change=${this._valueChanged}
+                ></ha-switch>
+            </div>
+
+            ${this._config.consumer_5_hide_pipe === true ? html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ number: { min: 0, max: 2000, step: 10, mode: "slider" } }}
+                .value=${this._config.consumer_5_pipe_threshold !== undefined ? this._config.consumer_5_pipe_threshold : 0}
+                .configValue=${'consumer_5_pipe_threshold'}
+                .label=${this._localize('editor.consumer_pipe_threshold')}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>
+            ` : ''}
+
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
@@ -907,11 +1081,15 @@ class PowerFluxCardEditor extends LitElement {
         </div>
 
         <div class="section-title">${this._localize('editor.options_section')}</div>
-        
-        <div>
+
+        <div class="option-group">
+            <div class="option-group-title"><ha-icon icon="mdi:view-quilt-outline"></ha-icon> ${this._localize('editor.group_layout')}</div>
+            ${this._renderSwitch('horizontal_view', 'editor.horizontal_view', this._config.horizontal_view === true)}
+            ${this._renderSwitch('diamond_view', 'editor.diamond_view', this._config.diamond_view === true)}
+            ${this._renderSwitch('use_boxes', 'editor.use_boxes', this._config.use_boxes === true)}
             <ha-selector
                 .hass=${this.hass}
-                .selector=${{ number: { min: 0.5, max: 1.5, step: 0.05, mode: "slider" } }}
+                .selector=${{ number: { min: 0.3, max: 1.0, step: 0.05, mode: "slider" } }}
                 .value=${this._config.zoom !== undefined ? this._config.zoom : 0.9}
                 .configValue=${'zoom'}
                 .label=${this._localize('editor.zoom_label')}
@@ -919,103 +1097,27 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
         </div>
 
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_neon_glow !== false} 
-                .configValue=${'show_neon_glow'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.neon_glow')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_donut_border === true}
-                .configValue=${'show_donut_border'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.donut_chart')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_comet_tail === true}
-                .configValue=${'show_comet_tail'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.comet_tail')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_dashed_line === true}
-                .configValue=${'show_dashed_line'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.dashed_line')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_tinted_background === true}
-                .configValue=${'show_tinted_background'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.tinted_background')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.use_colored_values === true}
-                .configValue=${'use_colored_values'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.colored_values')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.hide_consumer_icons === true}
-                .configValue=${'hide_consumer_icons'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.hide_consumer_icons')}</div>
-        </div>
-        
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.hide_inactive_flows !== false}
-                .configValue=${'hide_inactive_flows'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.hide_inactive')}</div>
+        <div class="option-group">
+            <div class="option-group-title"><ha-icon icon="mdi:palette-outline"></ha-icon> ${this._localize('editor.group_appearance')}</div>
+            ${this._renderSwitch('show_neon_glow', 'editor.neon_glow', this._config.show_neon_glow !== false)}
+            ${this._renderSwitch('show_comet_tail', 'editor.comet_tail', this._config.show_comet_tail === true)}
+            ${this._renderSwitch('show_dashed_line', 'editor.dashed_line', this._config.show_dashed_line === true)}
+            ${this._renderSwitch('show_donut_border', 'editor.donut_chart', this._config.show_donut_border === true)}
+            ${this._renderSwitch('show_tinted_background', 'editor.tinted_background', this._config.show_tinted_background === true)}
+            ${this._renderSwitch('use_colored_values', 'editor.colored_values', this._config.use_colored_values === true)}
         </div>
 
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.show_consumer_always === true}
-                .configValue=${'show_consumer_always'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.show_consumer_always')}</div>
+        <div class="option-group">
+            <div class="option-group-title"><ha-icon icon="mdi:pipe"></ha-icon> ${this._localize('editor.group_pipes')}</div>
+            ${this._renderSwitch('hide_inactive_flows', 'editor.hide_inactive', this._config.hide_inactive_flows !== false)}
+            ${this._renderSwitch('show_consumer_always', 'editor.show_consumer_always', this._config.show_consumer_always === true)}
+            ${this._renderSwitch('hide_consumer_icons', 'editor.hide_consumer_icons', this._config.hide_consumer_icons === true)}
         </div>
 
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.compact_view === true} 
-                .configValue=${'compact_view'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.compact_view')}</div>
-        </div>
-
-        <div class="switch-row">
-            <ha-switch
-                .checked=${this._config.compact_details === true} 
-                .configValue=${'compact_details'}
-                @change=${this._valueChanged}
-            ></ha-switch>
-            <div class="switch-label">${this._localize('editor.compact_details')}</div>
+        <div class="option-group">
+            <div class="option-group-title"><ha-icon icon="mdi:chart-timeline"></ha-icon> ${this._localize('editor.group_compact')}</div>
+            ${this._renderSwitch('compact_view', 'editor.compact_view_enable', this._config.compact_view === true)}
+            ${this._renderSwitch('compact_details', 'editor.compact_details', this._config.compact_details === true)}
         </div>
 		
       </div>

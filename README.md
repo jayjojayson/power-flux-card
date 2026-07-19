@@ -1,3 +1,5 @@
+<img width="100%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card_eng.png" />  
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-blue.svg)](https://github.com/hacs/plugin)
 [![HACS validation](https://img.shields.io/github/actions/workflow/status/jayjojayson/power-flux-card/validate.yml?label=HACS%20Validation)](https://github.com/jayjojayson/power-flux-card/actions?query=workflow%3Avalidate)
 [![GitHub release](https://img.shields.io/github/release/jayjojayson/power-flux-card?include_prereleases=&sort=semver&color=blue)](https://github.com/jayjojayson/power-flux-card/releases)
@@ -14,7 +16,7 @@ The ⚡ Power Flux Card is an advanced, animated energy flow card for Home Assis
 If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
 
 <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-ani.gif" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card.jpg" />  
-<img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact2.jpg" />
+<img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact2.jpg" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact7.png" />
 
 ### ✨ Features
 
@@ -76,7 +78,10 @@ You can configure the card directly via the visual editor in Home Assistant.
 - **Battery**: Battery power (W) and State of Charge (%).
 
 **Additional Consumers:**
-- You can add up to 3 individual consumers (e.g., Car, Heater, Pool) with custom icons and labels.
+- You can add up to 5 individual consumers (e.g., Car, Heater, Pool) with custom icons and labels.
+- **Invert Sensor Value**: Available for every consumer. If the (inverted) value is negative, the flow animation reverses — the consumer feeds the house (e.g. a secondary solar/hybrid inverter).
+- **Hide pipe at low power**: Every consumer can hide its pipe (and bubble) below an individual watt threshold.
+- Consumers are also shown in the Compact View (evcc) with their configured icons, labels and colors.
 
 **Options:**
 - **Zoom**: Adjust the size of the card.
@@ -84,8 +89,11 @@ You can configure the card directly via the visual editor in Home Assistant.
 - **Donut Chart**: Show the energy mix as a ring around the house.
 - **Comet Tail / Dashed Line**: Change the flow animation style.
 - **Compact View**: Switch to the bar chart layout.
+- **Horizontal / Diamond View**: Alternative layouts for the standard view — rotated 90° (horizontal) or with solar on top, grid left and battery right (diamond).
+- **Rounded Boxes**: Render the nodes as rounded boxes instead of circles.
 - **Color Options**: Define custom colors for each source and consumer.
 - **Grid Import/Export**: Configure separate or combined entities.
+- **Invert Grid Value**: For inverters that report export as positive and import as negative.
 - **Grid-to-Battery**: Optional direct sensor for Grid-to-Battery flow.
 - **Separate Battery Sensors**: Optional separate sensors for battery charge and discharge.
 - **Secondary Sensors**: Display alternative values in the main circles (e.g., daily yield, current charge power).

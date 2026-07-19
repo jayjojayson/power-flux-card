@@ -3,7 +3,7 @@ import lang_en from "./lang-en.js";
 import lang_de from "./lang-de.js";
 
 console.log(
-  "%c⚡ Power Flux Card v_2.4 ready",
+  "%c⚡ Power Flux Card v_2.6 ready",
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
@@ -40,6 +40,9 @@ console.log(
       return {
         zoom: 0.9,
         compact_view: false,
+        horizontal_view: false,
+        diamond_view: false,
+        use_boxes: false,
         compact_details: false,
         consumer_1_unit_kw: false,
         consumer_2_unit_kw: false,
@@ -47,6 +50,14 @@ console.log(
         show_consumer_always: false,
         consumer_1_hide_pipe: false,
         consumer_1_pipe_threshold: 0,
+        consumer_2_hide_pipe: false,
+        consumer_2_pipe_threshold: 0,
+        consumer_3_hide_pipe: false,
+        consumer_3_pipe_threshold: 0,
+        consumer_4_hide_pipe: false,
+        consumer_4_pipe_threshold: 0,
+        consumer_5_hide_pipe: false,
+        consumer_5_pipe_threshold: 0,
         show_donut_border: false,
         show_neon_glow: true,
         show_comet_tail: false,
@@ -379,7 +390,7 @@ console.log(
       .absolute-container {
         position: relative;
         width: 100%;
-        transition: top 0.3s ease; 
+        transition: top 0.3s ease, left 0.3s ease;
       }
 
       .bubble {
@@ -447,7 +458,7 @@ console.log(
         line-height: 1.2; position: absolute; bottom: 11px; left: 0; width: 100%; text-align: center; margin: 0;
       }
       .bubble.grid .value, .bubble.house .value { bottom: 15px; }
-      .direction-arrow { font-size: 12px; margin-right: 0px; vertical-align: top; }
+      .direction-arrow { font-size: 12px; margin-right: 0px; vertical-align: baseline; }
       
       @keyframes spin { 100% { transform: rotate(360deg); } }
       .spin-slow { animation: spin 12s linear infinite; transform-origin: center; }
@@ -488,6 +499,32 @@ console.log(
       .node-c4 { top: 470px; left: 85px; }
       .node-c5 { top: 470px; left: 245px; }
 
+      /* --- HORIZONTAL VIEW NODE POSITIONS (50px left lane reserved for the solar→battery arc) --- */
+      .h-node-battery { top: 5px; left: 55px; }
+      .h-node-grid    { top: 165px; left: 55px; }
+      .h-node-solar   { top: 325px; left: 55px; }
+      .h-node-house   { top: 165px; left: 265px; }
+      .h-node-c3      { top: 5px; left: 475px; }
+      .h-node-c2      { top: 165px; left: 475px; }
+      .h-node-c1      { top: 325px; left: 475px; }
+      .h-node-c4      { top: 85px; left: 580px; }
+      .h-node-c5      { top: 245px; left: 580px; }
+
+      /* --- DIAMOND VIEW NODE POSITIONS (solar top, grid left, battery right, house bottom) --- */
+      .d-node-solar   { top: 70px; left: 165px; }
+      .d-node-grid    { top: 145px; left: 5px; }
+      .d-node-battery { top: 145px; left: 325px; }
+      .d-node-house   { top: 220px; left: 165px; }
+
+      /* --- BOX SHAPE (rounded rectangles instead of circles) --- */
+      .bubble.box { border-radius: 16px; }
+      .bubble.box.donut::before { border-radius: 16px; }
+      /* Boxes offer more usable width: larger type, shifted 3px down */
+      .bubble.box .value { font-size: 17px; bottom: 3px; }
+      .bubble.box.grid .value, .bubble.box.house .value { bottom: 6px; }
+      .bubble.box .sub { top: 49px; }
+      .bubble.box .sub.secondary-val { font-size: 12px; }
+
       svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
       
       .bg-path { fill: none; stroke-width: 6; transition: opacity 0.3s ease; }
@@ -520,6 +557,34 @@ console.log(
       .text-grid { fill: var(--pipe-grid-color); }
       .text-export { fill: var(--export-color); }
       .text-battery { fill: var(--pipe-battery-color); }
+
+      /*
+       * Positionen der Flussraten-Texte an den Röhren (SVG-Nutzerkoordinaten).
+       * Je Layout überschreibbar – hier live im Browser anpassbar via transform: translate(x, y).
+       */
+      .layout-standard   .pos-solar-house  { transform: translate(100px, 235px); }
+      .layout-standard   .pos-solar-batt   { transform: translate(210px, 45px); }
+      .layout-standard   .pos-grid-house   { transform: translate(235px, 195px); }
+      .layout-standard   .pos-grid-batt    { transform: translate(290px, 145px); }
+      .layout-standard   .pos-batt-house   { transform: translate(320px, 235px); }
+      .layout-standard   .pos-export-solar { transform: translate(130px, 145px); }
+      .layout-standard   .pos-export-grid  { transform: translate(185px, 195px); }
+
+      .layout-horizontal .pos-solar-house  { transform: translate(225px, 340px); }
+      .layout-horizontal .pos-solar-batt   { transform: translate(285px, 160px); }
+      .layout-horizontal .pos-grid-house   { transform: translate(205px, 200px); }
+      .layout-horizontal .pos-grid-batt    { transform: translate(110px, 135px); }
+      .layout-horizontal .pos-batt-house   { transform: translate(225px, 85px); }
+      .layout-horizontal .pos-export-solar { transform: translate(110px, 295px); }
+      .layout-horizontal .pos-export-grid  { transform: translate(205px, 205px); }
+
+      .layout-diamond    .pos-solar-house  { transform: translate(235px, 210px); }
+      .layout-diamond    .pos-solar-batt   { transform: translate(285px, 160px); }
+      .layout-diamond    .pos-grid-house   { transform: translate(130px, 225px); }
+      .layout-diamond    .pos-grid-batt    { transform: translate(150px, 182px); }
+      .layout-diamond    .pos-batt-house   { transform: translate(298px, 245px); }
+      .layout-diamond    .pos-export-solar { transform: translate(135px, 160px); }
+      .layout-diamond    .pos-export-grid  { transform: translate(125px, 243px); }
     `;
     }
 
@@ -639,16 +704,37 @@ console.log(
 
       const solar = entities.solar ? Math.max(0, getValUnit(entities.solar, this.config.solar_unit_kw === true)) : 0;
       const hasGridCombined = !!(entities.grid_combined && entities.grid_combined !== "");
-      const gridCombinedVal = hasGridCombined ? getValUnit(entities.grid_combined, this.config.grid_unit_kw === true) : 0;
-      const gridMain = hasGridCombined ? gridCombinedVal : (entities.grid ? getValUnit(entities.grid, this.config.grid_unit_kw === true) : 0);
+      const gridSign = this.config.invert_grid ? -1 : 1;
+      const gridCombinedVal = hasGridCombined ? getValUnit(entities.grid_combined, this.config.grid_unit_kw === true) * gridSign : 0;
+      const gridMain = hasGridCombined ? gridCombinedVal : (entities.grid ? getValUnit(entities.grid, this.config.grid_unit_kw === true) * gridSign : 0);
       const gridExportSensor = entities.grid_export ? getValUnit(entities.grid_export, this.config.grid_unit_kw === true) : 0;
       let battery = entities.battery ? getValUnit(entities.battery, this.config.battery_unit_kw === true) : 0;
       if (this.config.invert_battery) {
         battery *= -1;
       }
-      let c1Val = entities.consumer_1 ? getValUnit(entities.consumer_1, this.config.consumer_1_unit_kw === true) : 0; // EV Value
-      if (this.config.invert_consumer_1) { c1Val *= -1; }
-      c1Val = Math.abs(c1Val);
+
+      // Additional consumers 1-5: configured icon/label/color, optional invert, magnitude used for the split
+      const consumerDefaults = {
+        1: { icon: 'mdi:car-electric', label: this._localize('card.label_car') },
+        2: { icon: 'mdi:radiator', label: this._localize('card.label_heater') },
+        3: { icon: 'mdi:pool', label: this._localize('card.label_pool') },
+        4: { icon: 'mdi:flash', label: this._localize('card.label_consumer_4') },
+        5: { icon: 'mdi:lightbulb', label: this._localize('card.label_consumer_5') },
+      };
+      const consumers = [1, 2, 3, 4, 5].map(idx => {
+        const ent = entities[`consumer_${idx}`];
+        let v = ent ? getValUnit(ent, this.config[`consumer_${idx}_unit_kw`] === true) : 0;
+        if (this.config[`invert_consumer_${idx}`]) { v *= -1; }
+        return {
+          idx,
+          entityId: ent,
+          val: Math.abs(v),
+          icon: this.config[`consumer_${idx}_icon`] || consumerDefaults[idx].icon,
+          label: this.config[`consumer_${idx}_label`] || consumerDefaults[idx].label,
+          iconColor: `var(--icon-consumer-${idx}-color)`,
+          textColor: `var(--consumer-${idx}-color)`,
+        };
+      });
 
       // 2. Logic Calculation
       let gridImport = 0;
@@ -702,14 +788,13 @@ console.log(
 
       const totalCons = solarTotalToCons + gridTotalToCons + battTotalToCons;
 
-      // Calculate Splits
-      let evPower = 0;
-      let housePower = totalCons;
-
-      if (c1Val > 0 && totalCons > 0) {
-        evPower = Math.min(c1Val, totalCons);
-        housePower = totalCons - evPower;
-      }
+      // Calculate Splits: each consumer takes its share of the total, the remainder is the house
+      let remainingCons = totalCons;
+      consumers.forEach(c => {
+        c.power = (c.val > 0 && remainingCons > 0) ? Math.min(c.val, remainingCons) : 0;
+        remainingCons -= c.power;
+      });
+      const housePower = remainingCons;
 
       // Calculate Total Bar Width (Flux)
       // The Bar represents: Battery Discharge + Solar + Grid Import
@@ -724,7 +809,6 @@ console.log(
 
       // DESTINATIONS (for Bottom Brackets)
       const destHouse = housePower;
-      const destEV = evPower;
       const destExport = gridExport;
       // Note: Battery Charge is also a destination (internal flow), but usually not bracketed if we only want "Consumers"
       // If we don't bracket Charge, there will be a gap. We can accept that or add a Charge bracket.
@@ -781,7 +865,7 @@ console.log(
       const bottomBrackets = [];
       let bottomX = 0;
 
-      const addBottomBracket = (val, type, entityId = null) => {
+      const addBottomBracket = (val, type, entityId = null, iconOverride = null, iconColorOverride = null) => {
         if (val <= threshold) return;
         const pct = val / totalFlux;
         const width = pct * fullWidth;
@@ -790,9 +874,10 @@ console.log(
         let iconColor = '';
 
         if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--icon-house-color)'; }
-        if (type === 'car') { icon = 'mdi:car-electric'; iconColor = 'var(--icon-consumer-1-color)'; }
         if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-color)'; }
         if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--icon-battery-color)'; }
+        if (iconOverride) { icon = iconOverride; }
+        if (iconColorOverride) { iconColor = iconColorOverride; }
 
         const path = this._createBracketPath(bottomX, width, 'up');
         bottomBrackets.push({
@@ -808,7 +893,7 @@ console.log(
       };
 
       addBottomBracket(destHouse, 'house', entities.house);
-      addBottomBracket(destEV, 'car', entities.consumer_1);
+      consumers.forEach(c => addBottomBracket(c.power, 'consumer', c.entityId, c.icon, c.iconColor));
       addBottomBracket(destExport, 'export', entities.grid_combined || entities.grid_export || entities.grid);
       addBottomBracket(batteryCharge, 'battery', entities.battery);
 
@@ -904,12 +989,12 @@ console.log(
                             <span class="compact-detail-label">Batterie</span>
                             <span class="compact-detail-value" style="color: var(--text-battery-color, var(--neon-green));">${this._formatPower(batteryCharge)}</span>
                         </div>` : ''}
-                        ${evPower > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => entities.consumer_1 && this._handleClick(entities.consumer_1)} style="cursor: ${entities.consumer_1 ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:car-electric" style="color: var(--icon-consumer-1-color);"></ha-icon>
-                            <span class="compact-detail-label">${this.config.consumer_1_label || 'EV'}</span>
-                            <span class="compact-detail-value" style="color: var(--consumer-1-color);">${this._formatPower(evPower)}</span>
-                        </div>` : ''}
+                        ${consumers.filter(c => c.power > 0).map(c => html`
+                        <div class="compact-detail-item" @click=${() => c.entityId && this._handleClick(c.entityId)} style="cursor: ${c.entityId ? 'pointer' : 'default'};">
+                            <ha-icon icon="${c.icon}" style="color: ${c.iconColor};"></ha-icon>
+                            <span class="compact-detail-label">${c.label}</span>
+                            <span class="compact-detail-value" style="color: ${c.textColor};">${this._formatPower(c.power)}</span>
+                        </div>`)}
                         ${gridExport > 0 ? html`
                         <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid_export || entities.grid) && this._handleClick(entities.grid_combined || entities.grid_export || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid_export || entities.grid) ? 'pointer' : 'default'};">
                             <ha-icon icon="mdi:arrow-right-box" style="color: var(--export-color);"></ha-icon>
@@ -927,6 +1012,10 @@ console.log(
     _renderStandardView(entities) {
       // FIX: Default to hidden unless explicitly set to false
       const hideInactive = this.config.hide_inactive_flows !== false;
+      const isHorizontal = this.config.horizontal_view === true;
+      const isDiamond = !isHorizontal && this.config.diamond_view === true;
+      const useBoxes = this.config.use_boxes === true;
+      const shapeClass = useBoxes ? 'box' : '';
 
       const globalFlowRate = this.config.show_flow_rates !== false;
 
@@ -936,10 +1025,10 @@ console.log(
       const showFlowBattery = this.config.show_flow_rate_battery !== undefined ? this.config.show_flow_rate_battery : globalFlowRate;
 
       // LABEL TOGGLES
-      const showLabelSolar = this.config.show_label_solar === true;
-      const showLabelGrid = this.config.show_label_grid === true;
-      const showLabelBattery = this.config.show_label_battery === true;
-      const showLabelHouse = this.config.show_label_house === true;
+      const showLabelSolar = this.config.show_label_solar === true || !!this.config.solar_label;
+      const showLabelGrid = this.config.show_label_grid === true || !!this.config.grid_label;
+      const showLabelBattery = this.config.show_label_battery === true || !!this.config.battery_label;
+      const showLabelHouse = this.config.show_label_house === true || !!this.config.house_label;
 
       const useColoredValues = this.config.use_colored_values === true;
       const showDonut = this.config.show_donut_border === true;
@@ -1027,34 +1116,46 @@ console.log(
       const getValKw = (entity, isKw) => {
         return getVal(entity) * (isKw ? 1000 : 1);
       };
-      // Consumer 4 & 5
-      let c4Val = entities.consumer_4 ? getValKw(entities.consumer_4, this.config.consumer_4_unit_kw === true) : 0;
-      let c5Val = entities.consumer_5 ? getValKw(entities.consumer_5, this.config.consumer_5_unit_kw === true) : 0;
-      c4Val = Math.abs(c4Val);
-      c5Val = Math.abs(c5Val);
-
-      let c1Val = entities.consumer_1 ? getValKw(entities.consumer_1, this.config.consumer_1_unit_kw === true) : 0;
-      if (this.config.invert_consumer_1) { c1Val *= -1; }
-      c1Val = Math.abs(c1Val);
-      const c2Val = entities.consumer_2 ? getValKw(entities.consumer_2, this.config.consumer_2_unit_kw === true) : 0;
-      const c3Val = entities.consumer_3 ? getValKw(entities.consumer_3, this.config.consumer_3_unit_kw === true) : 0;
+      // Consumers 1-5: raw value with optional inversion; negative = consumer feeds the house
+      const getConsumerRaw = (idx) => {
+        const ent = entities[`consumer_${idx}`];
+        let v = ent ? getValKw(ent, this.config[`consumer_${idx}_unit_kw`] === true) : 0;
+        if (this.config[`invert_consumer_${idx}`]) { v *= -1; }
+        return v;
+      };
+      const c1Raw = getConsumerRaw(1);
+      const c2Raw = getConsumerRaw(2);
+      const c3Raw = getConsumerRaw(3);
+      const c4Raw = getConsumerRaw(4);
+      const c5Raw = getConsumerRaw(5);
+      const c1Val = Math.abs(c1Raw);
+      const c2Val = Math.abs(c2Raw);
+      const c3Val = Math.abs(c3Raw);
+      const c4Val = Math.abs(c4Raw);
+      const c5Val = Math.abs(c5Raw);
 
       const alwaysShowConsumer = this.config.show_consumer_always === true;
-      const showC1 = (entities.consumer_1 && (alwaysShowConsumer || Math.round(c1Val) > 0));
-      const showC2 = (entities.consumer_2 && (alwaysShowConsumer || Math.round(c2Val) > 0));
-      const showC3 = (entities.consumer_3 && (alwaysShowConsumer || Math.round(c3Val) > 0));
-      const showC4 = (entities.consumer_4 && (alwaysShowConsumer || Math.round(c4Val) > 0));
-      const showC5 = (entities.consumer_5 && (alwaysShowConsumer || Math.round(c5Val) > 0));
+
+      // Consumer visibility incl. hide-pipe threshold: below threshold the pipe (and the consumer) is hidden
+      const consumerVisibility = (idx, val) => {
+        const ent = entities[`consumer_${idx}`];
+        const hidePipe = this.config[`consumer_${idx}_hide_pipe`] === true;
+        const threshold = this.config[`consumer_${idx}_pipe_threshold`] || 0;
+        const show = !!(ent && (alwaysShowConsumer || Math.round(val) > (hidePipe ? threshold : 0)));
+        const pipeActive = show && (!hidePipe || val >= threshold);
+        return { show, pipeActive };
+      };
+      const { show: showC1, pipeActive: c1PipeActive } = consumerVisibility(1, c1Val);
+      const { show: showC2, pipeActive: c2PipeActive } = consumerVisibility(2, c2Val);
+      const { show: showC3, pipeActive: c3PipeActive } = consumerVisibility(3, c3Val);
+      const { show: showC4, pipeActive: c4PipeActive } = consumerVisibility(4, c4Val);
+      const { show: showC5, pipeActive: c5PipeActive } = consumerVisibility(5, c5Val);
       const anyBottomVisible = showC1 || showC2 || showC3 || showC4 || showC5;
 
-      // Consumer 1 pipe threshold
-      const hideC1Pipe = this.config.consumer_1_hide_pipe === true;
-      const c1PipeThreshold = this.config.consumer_1_pipe_threshold || 0;
-      const c1PipeActive = showC1 && (!hideC1Pipe || c1Val >= c1PipeThreshold);
-
       const solar = hasSolar ? getValKw(entities.solar, this.config.solar_unit_kw === true) : 0;
-      const gridCombinedVal = hasGridCombined ? getValKw(entities.grid_combined, this.config.grid_unit_kw === true) : 0;
-      const gridMain = hasGridCombined ? gridCombinedVal : (hasGrid ? getValKw(entities.grid, this.config.grid_unit_kw === true) : 0);
+      const gridSign = this.config.invert_grid ? -1 : 1;
+      const gridCombinedVal = hasGridCombined ? getValKw(entities.grid_combined, this.config.grid_unit_kw === true) * gridSign : 0;
+      const gridMain = hasGridCombined ? gridCombinedVal : (hasGrid ? getValKw(entities.grid, this.config.grid_unit_kw === true) * gridSign : 0);
       const gridExpSensor = (hasGrid && entities.grid_export) ? getValKw(entities.grid_export, this.config.grid_unit_kw === true) : 0;
       let battery = hasBattery ? getValKw(entities.battery, this.config.battery_unit_kw === true) : 0;
       if (this.config.invert_battery) {
@@ -1123,29 +1224,38 @@ console.log(
       // Use house entity for display if defined, otherwise use calculated value
       const houseDisplay = (entities.house && entities.house !== "") ? getVal(entities.house) : house;
 
-      // Solar→Batt arc only visible when battery is actively charging and not via house
-      const styleSolarBatt = (hasSolar && hasBattery && batteryCharge > 0 && !batteryChargeViaHouse) ? '' : 'display: none;';
+      // Solar→Batt arc only visible when battery is actively charging and not via house.
+      // In the diamond layout the arc is part of the ring, so keep it as inactive pipe when inactive pipes are shown.
+      const styleSolarBatt = (hasSolar && hasBattery && !batteryChargeViaHouse && (batteryCharge > 0 || (!hideInactive && isDiamond))) ? '' : 'display: none;';
       // Grid→Batt pipe: only hide if entities missing; actual visibility handled by getPipeStyle (hideInactive)
       const styleGridBatt = (hasGrid && hasBattery) ? '' : 'display: none;';
 
       const isTopArcActive = (solarToBatt > 0) && !batteryChargeViaHouse;
       const hasTopRow = hasSolar || hasGrid || hasBattery;
-      const topShift = !hasTopRow ? 190 : ((isTopArcActive || (!hideInactive && hasSolar && hasBattery && batteryCharge > 0 && !batteryChargeViaHouse)) ? 0 : 50);
+      // Diamond keeps every main connection inside the same vertical envelope, so no extra headroom needed
+      const topShift = isHorizontal ? 0 : (!hasTopRow ? 190 : (isDiamond ? 50 : ((isTopArcActive || (!hideInactive && hasSolar && hasBattery && batteryCharge > 0 && !batteryChargeViaHouse)) ? 0 : 50)));
       const anyRow2Visible = showC4 || showC5;
       let baseHeight = anyRow2Visible ? 580 : (anyBottomVisible ? 480 : 340);
       const contentHeight = baseHeight - topShift;
 
-      const designWidth = 420;
+      // Horizontal: the 50px left lane is only kept while the solar→battery arc is visible,
+      // otherwise the content shifts left and fills the card (mirror of the vertical topShift)
+      const showLeftArc = isHorizontal && hasSolar && hasBattery && !batteryChargeViaHouse && batteryCharge > 0 && (solarToBatt > 1 || !hideInactive);
+      const leftShift = isHorizontal && !showLeftArc ? 50 : 0;
+      const fullDesignWidth = anyRow2Visible ? 675 : 570;
+      const designWidth = isHorizontal ? fullDesignWidth - leftShift : 420;
+      const svgWidth = isHorizontal ? fullDesignWidth : designWidth;
+      const designHeight = isHorizontal ? 460 : contentHeight;
       const availableWidth = this._cardWidth || designWidth;
       let scale = availableWidth / designWidth;
       const userZoom = this.config.zoom !== undefined ? this.config.zoom : 0.9;
       scale = scale * userZoom;
 
       if (scale < 0.5) scale = 0.5;
-      if (scale > 1.5) scale = 1.5;
+      if (scale > 3.0) scale = 3.0;
 
-      const finalCardHeightPx = contentHeight * scale;
-      const visualWidth = 420 * scale;
+      const finalCardHeightPx = designHeight * scale;
+      const visualWidth = designWidth * scale;
       const centerMarginLeft = Math.max(0, (availableWidth - visualWidth) / 2);
 
       let houseGradientVal = '';
@@ -1312,7 +1422,11 @@ console.log(
           const secColor = entityKey ? getSecondaryColor(entityKey) : '#888888';
           return html`<div class="sub secondary-val" style="color: ${secColor};">${secVal}</div>`;
         }
-        return renderLabel(labelText, showLabel);
+        if (!showLabel) return html``;
+        const secColor = entityKey ? getSecondaryColor(entityKey) : null;
+        return secColor
+          ? html`<div class="sub secondary-val" style="color: ${secColor};">${labelText}</div>`
+          : html`<div class="sub">${labelText}</div>`;
       };
 
       const renderMainIcon = (type, val, customIcon, color = null) => {
@@ -1323,7 +1437,13 @@ console.log(
         return this._renderIcon(type, val, color);
       };
 
-      const renderConsumer = (isVisible, cssClass, configKey, label, iconType, val, hexColor) => {
+      const nodeClass = (name) => {
+        if (isHorizontal) return `h-node-${name}`;
+        if (isDiamond && ['solar', 'grid', 'battery', 'house'].includes(name)) return `d-node-${name}`;
+        return `node-${name}`;
+      };
+
+      const renderConsumer = (isVisible, cssClass, nodeClassStr, configKey, label, iconType, val, hexColor) => {
         if (!isVisible) return html``;
 
         const customIcon = this.config[`${configKey}_icon`];
@@ -1347,7 +1467,7 @@ console.log(
           : getConsumerColorStyle(hexColor);
 
         return html`
-            <div class="bubble ${cssClass} ${cssClass.replace('c', 'node-c')} ${tintClass} ${glowClass}"
+            <div class="bubble ${shapeClass} ${cssClass} ${nodeClassStr} ${tintClass} ${glowClass}"
                 @click=${() => this._handleClick(entities[configKey])}>
                 ${iconContent}
                 ${renderSecondaryOrLabel(label, true, secEntity, hasSecondary, `secondary_${configKey}`)}
@@ -1366,23 +1486,64 @@ console.log(
         return getAnimStyle(val, idx ? `--pipe-consumer-${idx}-opacity` : null);
       };
 
-      const pathSolarHouse = "M 50 160 Q 50 265 165 265";
-      const pathSolarBatt = "M 50 70 Q 210 -20 370 70";
-      const pathGridImport = "M 210 160 L 210 220";
-      const pathGridExport = "M 95 115 Q 130 145 165 115";
-      const pathHouseExport = "M 210 220 L 210 160";
+      let pathSolarHouse, pathSolarBatt, pathGridImport, pathGridExport, pathHouseExport, pathGridToBatt, pathBattHouse, pathHouseToBatt;
+      // Positionen der Flussraten-Texte werden per CSS gesetzt (siehe .layout-* .pos-* im Style-Block).
+      const layoutClass = isHorizontal ? 'layout-horizontal' : isDiamond ? 'layout-diamond' : 'layout-standard';
+      if (isHorizontal) {
+        pathSolarHouse  = "M 145 370 Q 310 370 310 255";
+        // Solar→Battery arcs through the reserved left lane (mirror of the vertical top arc)
+        pathSolarBatt   = "M 55 370 Q -30 210 55 50";
+        pathGridImport  = "M 145 210 L 265 210";
+        pathGridExport  = "M 100 325 Q 70 290 100 255";
+        pathHouseExport = "M 265 210 L 145 210";
+        pathGridToBatt  = "M 100 165 Q 70 130 100 95";
+        pathBattHouse   = "M 145 50 Q 310 50 310 165";
+        pathHouseToBatt = "M 310 165 Q 310 50 145 50";
+      } else if (isDiamond) {
+        // Diamond layout (PR #46): solar top, grid left, battery right, house center-bottom.
+        // Box mode: diagonal attachment points sit on the rounded-box edge instead of the circle rim.
+        pathSolarHouse  = "M 210 160 L 210 220";
+        pathSolarBatt   = useBoxes ? "M 255 136 Q 310 133 325 169" : "M 251 134 Q 310 133 329 171";
+        pathGridImport  = useBoxes ? "M 95 211 Q 118 250 165 244"  : "M 91 209 Q 118 250 169 246";
+        pathGridExport  = useBoxes ? "M 165 136 Q 118 130 95 169"  : "M 169 134 Q 118 130 91 171";
+        pathHouseExport = useBoxes ? "M 165 244 Q 118 250 95 211"  : "M 169 246 Q 118 250 91 209";
+        pathGridToBatt  = "M 95 190 L 325 190";
+        pathBattHouse   = useBoxes ? "M 325 211 Q 302 250 255 244" : "M 329 209 Q 302 250 251 246";
+        pathHouseToBatt = useBoxes ? "M 255 244 Q 302 250 325 211" : "M 251 246 Q 302 250 329 209";
+      } else {
+        pathSolarHouse  = "M 50 160 Q 50 265 165 265";
+        pathSolarBatt   = "M 50 70 Q 210 -20 370 70";
+        pathGridImport  = "M 210 160 L 210 220";
+        pathGridExport  = "M 95 115 Q 130 145 165 115";
+        pathHouseExport = "M 210 220 L 210 160";
+        pathGridToBatt  = "M 255 115 Q 290 145 325 115";
+        pathBattHouse   = "M 370 160 Q 370 265 255 265";
+        pathHouseToBatt = "M 255 265 Q 370 265 370 160";
+      }
       const exportFromSolar = solarVal > 1;
-      const activeExportPath = exportFromSolar ? pathGridExport : pathHouseExport;
-      const exportTextX = exportFromSolar ? '130' : '185';
-      const exportTextY = exportFromSolar ? '145' : '195';
-      const pathGridToBatt = "M 255 115 Q 290 145 325 115";
-      const pathBattHouse = "M 370 160 Q 370 265 255 265";
-      const pathHouseToBatt = "M 255 265 Q 370 265 370 160";
-      const pathHouseC1 = "M 165 265 Q 50 265 50 370";
-      const pathHouseC2 = "M 210 310 L 210 370";
-      const pathHouseC3 = "M 255 265 Q 370 265 370 370";
-      const pathHouseC4 = "M 165 265 Q 90 370 130 470";
-      const pathHouseC5 = "M 255 265 Q 330 370 290 470";
+      // With inactive pipes shown and no active export, draw the pipe on the solar→grid bow
+      // (instead of the house→grid line, which overlaps the import pipe) so the ring stays complete
+      const activeExportPath = (exportFromSolar || (!hideInactive && hasSolar && Math.round(gridExport) <= 1)) ? pathGridExport : pathHouseExport;
+      const pathHouseC1 = isHorizontal ? "M 310 255 Q 310 370 475 370" : "M 165 265 Q 50 265 50 370";
+      const pathHouseC2 = isHorizontal ? "M 355 210 L 475 210"         : "M 210 310 L 210 370";
+      const pathHouseC3 = isHorizontal ? "M 310 165 Q 310 50 475 50"   : "M 255 265 Q 370 265 370 370";
+      const pathHouseC4 = isHorizontal ? "M 310 165 Q 310 130 580 130" : "M 165 265 Q 90 370 130 470";
+      const pathHouseC5 = isHorizontal ? "M 310 255 Q 310 290 580 290" : "M 255 265 Q 330 370 290 470";
+
+      // Reversed animation direction when the (optionally inverted) consumer value is negative,
+      // i.e. the consumer acts as a producer feeding the house (e.g. secondary solar/hybrid inverter)
+      const reversePath = (d) => {
+        const q = d.match(/^M\s*(\S+)\s+(\S+)\s*Q\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/);
+        if (q) return `M ${q[5]} ${q[6]} Q ${q[3]} ${q[4]} ${q[1]} ${q[2]}`;
+        const l = d.match(/^M\s*(\S+)\s+(\S+)\s*L\s*(\S+)\s+(\S+)\s*$/);
+        if (l) return `M ${l[3]} ${l[4]} L ${l[1]} ${l[2]}`;
+        return d;
+      };
+      const flowPathC1 = c1Raw < 0 ? reversePath(pathHouseC1) : pathHouseC1;
+      const flowPathC2 = c2Raw < 0 ? reversePath(pathHouseC2) : pathHouseC2;
+      const flowPathC3 = c3Raw < 0 ? reversePath(pathHouseC3) : pathHouseC3;
+      const flowPathC4 = c4Raw < 0 ? reversePath(pathHouseC4) : pathHouseC4;
+      const flowPathC5 = c5Raw < 0 ? reversePath(pathHouseC5) : pathHouseC5;
 
       const houseTextStyle = this.config.color_text_house
         ? 'color: var(--text-house-color);'
@@ -1393,10 +1554,10 @@ console.log(
       return html`
       <ha-card style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
         
-        <div class="scale-wrapper" style="transform: scale(${scale}); margin-left: ${centerMarginLeft}px;">
+        <div class="scale-wrapper" style="transform: scale(${scale}); margin-left: ${centerMarginLeft}px; ${isHorizontal ? `width: ${designWidth}px;` : ''}">
             
-            <div class="absolute-container" style="height: ${baseHeight}px; top: -${topShift}px;">
-                <svg height="${baseHeight}" viewBox="0 0 420 ${baseHeight}" preserveAspectRatio="xMidYMid meet">
+            <div class="absolute-container" style="height: ${isHorizontal ? 460 : baseHeight}px; top: ${isHorizontal ? '20px' : `-${topShift}px`}; ${isHorizontal ? `left: -${leftShift}px; width: ${fullDesignWidth}px;` : ''}">
+                <svg class="flow-svg ${layoutClass}" height="${isHorizontal ? 460 : baseHeight}" viewBox="0 0 ${svgWidth} ${isHorizontal ? 460 : baseHeight}" preserveAspectRatio="xMidYMid meet">
                     
                     <path class="bg-path bg-solar" d="${pathSolarHouse}" style="${getPipeStyle(solarToHouse, '--pipe-solar-opacity')} ${styleSolar}" />
                     <path class="bg-path bg-solar" d="${pathSolarBatt}" style="${getPipeStyle(solarToBatt, '--pipe-solar-opacity')} ${styleSolarBatt}" />
@@ -1410,10 +1571,10 @@ console.log(
                     <path class="bg-path bg-battery" d="${pathHouseToBatt}" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getPipeStyle(batteryCharge, '--pipe-battery-opacity') + ' ' + styleBattery : 'display:none;'}" />
 
                     <path d="${pathHouseC1}" fill="none" stroke="${this._getConsumerPipeColor(1)}" stroke-width="6" style="${getConsumerPipeStyle(c1PipeActive, c1Val, 1)}" />
-                    <path d="${pathHouseC2}" fill="none" stroke="${this._getConsumerPipeColor(2)}" stroke-width="6" style="${getConsumerPipeStyle(showC2, c2Val, 2)}" />
-                    <path d="${pathHouseC3}" fill="none" stroke="${this._getConsumerPipeColor(3)}" stroke-width="6" style="${getConsumerPipeStyle(showC3, c3Val, 3)}" />
-                    <path d="${pathHouseC4}" fill="none" stroke="${this._getConsumerPipeColor(4)}" stroke-width="6" style="${getConsumerPipeStyle(showC4, c4Val, 4)}" />
-                    <path d="${pathHouseC5}" fill="none" stroke="${this._getConsumerPipeColor(5)}" stroke-width="6" style="${getConsumerPipeStyle(showC5, c5Val, 5)}" />
+                    <path d="${pathHouseC2}" fill="none" stroke="${this._getConsumerPipeColor(2)}" stroke-width="6" style="${getConsumerPipeStyle(c2PipeActive, c2Val, 2)}" />
+                    <path d="${pathHouseC3}" fill="none" stroke="${this._getConsumerPipeColor(3)}" stroke-width="6" style="${getConsumerPipeStyle(c3PipeActive, c3Val, 3)}" />
+                    <path d="${pathHouseC4}" fill="none" stroke="${this._getConsumerPipeColor(4)}" stroke-width="6" style="${getConsumerPipeStyle(c4PipeActive, c4Val, 4)}" />
+                    <path d="${pathHouseC5}" fill="none" stroke="${this._getConsumerPipeColor(5)}" stroke-width="6" style="${getConsumerPipeStyle(c5PipeActive, c5Val, 5)}" />
 
                     <path class="flow-line flow-solar" d="${pathSolarHouse}" style="${getAnimStyle(solarToHouse, '--pipe-solar-opacity')} ${styleSolar}" />
                     <path class="flow-line flow-solar" d="${pathSolarBatt}" style="${getAnimStyle(solarToBatt, '--pipe-solar-opacity')} ${styleSolarBatt}" />
@@ -1426,27 +1587,27 @@ console.log(
 
                     <path class="flow-line flow-battery" d="${pathHouseToBatt}" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getAnimStyle(batteryCharge, '--pipe-battery-opacity') + ' ' + styleBattery : 'display:none;'}" />
 
-                    <path class="flow-line" d="${pathHouseC1}" stroke="${this._getConsumerPipeColor(1)}" style="${getConsumerAnimStyle(c1PipeActive, c1Val, 1)}" />
-                    <path class="flow-line" d="${pathHouseC2}" stroke="${this._getConsumerPipeColor(2)}" style="${getConsumerAnimStyle(showC2, c2Val, 2)}" />
-                    <path class="flow-line" d="${pathHouseC3}" stroke="${this._getConsumerPipeColor(3)}" style="${getConsumerAnimStyle(showC3, c3Val, 3)}" />
-                    <path class="flow-line" d="${pathHouseC4}" stroke="${this._getConsumerPipeColor(4)}" style="${getConsumerAnimStyle(showC4, c4Val, 4)}" />
-                    <path class="flow-line" d="${pathHouseC5}" stroke="${this._getConsumerPipeColor(5)}" style="${getConsumerAnimStyle(showC5, c5Val, 5)}" />
+                    <path class="flow-line" d="${flowPathC1}" stroke="${this._getConsumerPipeColor(1)}" style="${getConsumerAnimStyle(c1PipeActive, c1Val, 1)}" />
+                    <path class="flow-line" d="${flowPathC2}" stroke="${this._getConsumerPipeColor(2)}" style="${getConsumerAnimStyle(c2PipeActive, c2Val, 2)}" />
+                    <path class="flow-line" d="${flowPathC3}" stroke="${this._getConsumerPipeColor(3)}" style="${getConsumerAnimStyle(c3PipeActive, c3Val, 3)}" />
+                    <path class="flow-line" d="${flowPathC4}" stroke="${this._getConsumerPipeColor(4)}" style="${getConsumerAnimStyle(c4PipeActive, c4Val, 4)}" />
+                    <path class="flow-line" d="${flowPathC5}" stroke="${this._getConsumerPipeColor(5)}" style="${getConsumerAnimStyle(c5PipeActive, c5Val, 5)}" />
 
-                    <text x="100" y="235" class="${textClass} text-solar" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
-                    <text x="210" y="45" class="${textClass} text-solar" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>
-                    
-                    <text x="235" y="195" class="${textClass} text-grid" style="${getTextStyle(gridToHouse, 'grid')} ${styleGrid}">${this._formatPower(gridToHouse)}</text>
-                    <text x="${exportTextX}" y="${exportTextY}" class="${textClass} text-export" style="${getTextStyle(gridExport, 'grid')} ${styleGrid}">${this._formatPower(gridExport)}</text>
-                    <text x="290" y="145" class="${textClass} text-grid" style="${getTextStyle(gridToBatt, 'grid')} ${styleGridBatt}">${this._formatPower(gridToBatt)}</text>
-                    
-                    <text x="320" y="235" class="${textClass} text-battery" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
+                    <text class="${textClass} text-solar pos-solar-house" style="${getTextStyle(solarToHouse, 'solar')} ${styleSolar}">${this._formatPower(solarToHouse)}</text>
+                    <text class="${textClass} text-solar pos-solar-batt" style="${getTextStyle(solarToBatt, 'solar')} ${styleSolarBatt}">${this._formatPower(solarToBatt)}</text>
 
-                    <text x="320" y="235" class="${textClass} text-battery" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getTextStyle(batteryCharge, 'battery') + ' ' + styleBattery : 'display:none;'}">${this._formatPower(batteryCharge)}</text>
+                    <text class="${textClass} text-grid pos-grid-house" style="${getTextStyle(gridToHouse, 'grid')} ${styleGrid}">${this._formatPower(gridToHouse)}</text>
+                    <text class="${textClass} text-export ${exportFromSolar ? 'pos-export-solar' : 'pos-export-grid'}" style="${getTextStyle(gridExport, 'grid')} ${styleGrid}">${this._formatPower(gridExport)}</text>
+                    <text class="${textClass} text-grid pos-grid-batt" style="${getTextStyle(gridToBatt, 'grid')} ${styleGridBatt}">${this._formatPower(gridToBatt)}</text>
+
+                    <text class="${textClass} text-battery pos-batt-house" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
+
+                    <text class="${textClass} text-battery pos-batt-house" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getTextStyle(batteryCharge, 'battery') + ' ' + styleBattery : 'display:none;'}">${this._formatPower(batteryCharge)}</text>
 
                 </svg>
 
                 ${hasSolar ? html`
-                <div class="bubble ${isSolarActive ? 'solar' : 'inactive'} node-solar ${tintClass} ${isSolarActive ? glowClass : ''}"
+                <div class="bubble ${shapeClass} ${isSolarActive ? 'solar' : 'inactive'} ${nodeClass('solar')} ${tintClass} ${isSolarActive ? glowClass : ''}"
                     @click=${() => this._handleClick(entities.solar)}>
                     ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
                     ${renderSecondaryOrLabel(labelSolarText, showLabelSolar, entities.secondary_solar, hasSecondarySolar, 'secondary_solar')}
@@ -1454,7 +1615,7 @@ console.log(
                 </div>` : ''}
                 
                 ${hasGrid ? html`
-                <div class="bubble ${isGridActive ? (isGridExporting ? 'grid exporting' : 'grid') : 'inactive'} node-grid ${showDonut && isGridActive ? 'donut' : ''} ${tintClass} ${isGridActive ? glowClass : ''}"
+                <div class="bubble ${shapeClass} ${isGridActive ? (isGridExporting ? 'grid exporting' : 'grid') : 'inactive'} ${nodeClass('grid')} ${showDonut && isGridActive ? 'donut' : ''} ${tintClass} ${isGridActive ? glowClass : ''}"
                     style="${showDonut && isGridActive ? `--grid-gradient: ${gridGradientVal};` : ''}"
                     @click=${() => this._handleClick(entities.grid_combined || entities.grid)}>
                     ${renderMainIcon('grid', isGridExporting ? gridExport : gridImport, iconGrid, gridIconColor)}
@@ -1466,14 +1627,14 @@ console.log(
                 </div>` : ''}
                 
                 ${hasBattery ? html`
-                <div class="bubble battery node-battery ${tintClass} ${glowClass}"
+                <div class="bubble ${shapeClass} battery ${nodeClass('battery')} ${tintClass} ${glowClass}"
                     @click=${() => this._handleClick(entities.battery)}>
                     ${renderMainIcon('battery', battSoc, iconBattery)}
                     ${renderSecondaryOrLabel(labelBatteryText, showLabelBattery, entities.secondary_battery, hasSecondaryBattery, 'secondary_battery')}
                     <div class="value" style="${this.config.color_text_battery ? 'color: var(--text-battery-color);' : getColorStyle('--neon-green')}">${this.config.battery_show_power ? this._formatPower(battery) : Math.round(battSoc) + '%'}</div>
                 </div>` : ''}
                 
-                <div class="bubble house node-house ${showDonut ? 'donut' : ''} ${tintClass}" 
+                <div class="bubble ${shapeClass} house ${nodeClass('house')} ${showDonut ? 'donut' : ''} ${tintClass}"
                     style="${houseBubbleStyle}"
                     @click=${() => this._handleClick(entities.house)}>
                     ${renderMainIcon('house', 0, this.config.house_icon || null, this.config.color_icon_house ? 'var(--icon-house-color)' : houseDominantColor)}
@@ -1481,12 +1642,12 @@ console.log(
                     <div class="value" style="${houseTextStyle}">${this._formatPower(houseDisplay)}</div>
                 </div>
 
-                ${renderConsumer(showC1, 'c1', 'consumer_1', labelC1, 'car', c1Val, this._getConsumerColor(1))}
-                ${renderConsumer(showC2, 'c2', 'consumer_2', labelC2, 'heater', c2Val, this._getConsumerColor(2))}
-                ${renderConsumer(showC3, 'c3', 'consumer_3', labelC3, 'pool', c3Val, this._getConsumerColor(3))}
+                ${renderConsumer(showC1, 'c1', nodeClass('c1'), 'consumer_1', labelC1, 'car', c1Val, this._getConsumerColor(1))}
+                ${renderConsumer(showC2, 'c2', nodeClass('c2'), 'consumer_2', labelC2, 'heater', c2Val, this._getConsumerColor(2))}
+                ${renderConsumer(showC3, 'c3', nodeClass('c3'), 'consumer_3', labelC3, 'pool', c3Val, this._getConsumerColor(3))}
 
-                ${renderConsumer(showC4, 'c4', 'consumer_4', this.config.consumer_4_label || 'Consumer 4', null, c4Val, this._getConsumerColor(4))}
-                ${renderConsumer(showC5, 'c5', 'consumer_5', this.config.consumer_5_label || 'Consumer 5', null, c5Val, this._getConsumerColor(5))}
+                ${renderConsumer(showC4, 'c4', nodeClass('c4'), 'consumer_4', this.config.consumer_4_label || 'Consumer 4', null, c4Val, this._getConsumerColor(4))}
+                ${renderConsumer(showC5, 'c5', nodeClass('c5'), 'consumer_5', this.config.consumer_5_label || 'Consumer 5', null, c5Val, this._getConsumerColor(5))}
                 
             </div>
         </div>
