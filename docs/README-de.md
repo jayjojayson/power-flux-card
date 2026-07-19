@@ -21,7 +21,9 @@ Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewert
 ### ✨ Funktionen
 
 - **Echtzeit-Animation**: Visualisiert den Energiefluss mit bewegten Partikeln.
-- **Mehrere Quellen & Verbraucher**: Unterstützt Solar, Netz, Batterie und bis zu 3 zusätzliche Verbraucher (z.B. E-Auto, Heizung, Pool).
+- **Mehrere Quellen & Verbraucher**: Unterstützt Solar, Netz, Batterie und bis zu 5 zusätzliche Verbraucher (z.B. E-Auto, Heizung, Pool).
+- **Bidirektionale Verbraucher**: Jeder Verbraucher kann auch als Erzeuger fungieren — wird sein Sensorwert invertiert, kehrt sich die Flussrichtung um und speist sichtbar ins Haus ein (z.B. für einen zweiten Solar-/Hybrid-Wechselrichter als „Verbraucher").
+- **Mehrere Layouts**: Neben der Standard-Ansicht stehen eine horizontale (um 90° gedrehte) und eine Diamant-Ansicht (Solar oben, Netz links, Batterie rechts, Haus unten) zur Verfügung.
 - **Kompakte Ansicht**: Eine minimalistische Balkendiagramm-Ansicht (inspiriert von evcc).
 - **Anpassbares Aussehen**:
   - **Neon Glow**: Leuchteffekte für aktive Stromleitungen.
@@ -30,6 +32,7 @@ Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewert
   - **Zoom**: Anpassbare Größe für Ihr Dashboard.
   - **Benutzerdefinierte Farben**: Definiere benutzerdefinierte Farben für jede Quelle und jeden Verbraucher über den Editor.
   - **Hintergrundfarbe**: Aktiviere einen leicht getönten Hintergrund für die Kreise in der Standard-Ansicht.
+  - **Boxen statt Kreise**: Stelle alle Knoten als Boxen mit runden Ecken statt als Kreise dar.
 - **Dynamische Animationsgeschwindigkeit**: Partikelgeschwindigkeit und -dichte passen sich dem aktuellen Energiefluss an.
 - **Weitere Informationen**: Klicke auf eine beliebige Quelle/Verbraucher, um detaillierte Informationen in einem More-Info-Dialog anzuzeigen.
 - **Netz-Import/Export**: Unterstützt sowohl separate Import/Export-Entitäten als auch eine kombinierte Entität mit positiven/negativen Werten.
@@ -80,7 +83,10 @@ Du kannst die Karte direkt über den visuellen Editor in Home Assistant konfigur
 - **Batterie**: Batterieleistung (W) und Ladestand (%).
 
 **Zusätzliche Verbraucher:**
-- Du kannst bis zu 3 individuelle Verbraucher (z.B. Auto, Heizung, Pool) mit eigenen Icons und Beschriftungen hinzufügen.
+- Du kannst bis zu 5 individuelle Verbraucher (z.B. Auto, Heizung, Pool) mit eigenen Icons und Beschriftungen hinzufügen.
+- **Sensorwert invertieren**: Für jeden Verbraucher verfügbar. Wird der (invertierte) Wert negativ, kehrt sich die Flussanimation um — der Verbraucher speist dann ins Haus ein (z.B. ein zweiter Solar-/Hybrid-Wechselrichter).
+- **Pipe bei geringer Leistung ausblenden**: Jeder Verbraucher kann seine Röhre (und Bubble) unterhalb eines individuellen Watt-Schwellenwerts ausblenden.
+- Verbraucher werden auch in der Kompakten Ansicht (evcc) mit ihren konfigurierten Icons, Beschriftungen und Farben angezeigt.
 
 **Optionen:**
 - **Zoom**: Passen Sie die Größe der Karte an.
@@ -88,6 +94,8 @@ Du kannst die Karte direkt über den visuellen Editor in Home Assistant konfigur
 - **Donut Chart**: Zeigt den Energiemix als Ring um das Haus an.
 - **Kometenschweif / Gestrichelte Linie**: Ändern Sie den Stil der Flussanimation.
 - **Kompakte Ansicht**: Wechseln Sie zum Balkendiagramm-Layout.
+- **Horizontale / Diamant-Ansicht**: Alternative Layouts zur Standard-Ansicht — um 90° gedreht (horizontal) oder mit Solar oben, Netz links und Batterie rechts (Diamant).
+- **Boxen statt Kreise**: Stellt die Knoten als Boxen mit runden Ecken statt als Kreise dar.
 - **Farboptionen**: Definieren Sie benutzerdefinierte Farben für jede Quelle und Verbraucher.
 - **Netz-Import/Export**: Konfigurieren Sie separate oder kombinierte Entitäten.
 - **Netz-zu-Batterie**: Optionaler direkter Sensor für den Netz-zu-Batterie-Fluss.

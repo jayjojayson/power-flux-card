@@ -21,7 +21,9 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
 ### ✨ Features
 
 - **Real-time Animation**: Visualizes energy flow with moving particles.
-- **Multiple Sources & Consumers**: Supports Solar, Grid, Battery, and up to 3 additional consumers (e.g., EV, Heater, Pool).
+- **Multiple Sources & Consumers**: Supports Solar, Grid, Battery, and up to 5 additional consumers (e.g., EV, Heater, Pool).
+- **Bidirectional Consumers**: Any consumer can act as a producer too — invert its sensor value and the flow reverses into the house (e.g. a second solar/hybrid inverter modeled as a consumer).
+- **Multiple Layouts**: Alongside the standard view, choose a horizontal (rotated 90°) or diamond layout (Solar top, Grid left, Battery right, House bottom).
 - **Compact View**: A minimalist bar chart view (inspired by evcc).
 - **Customizable Appearance**:
   - **Neon Glow**: Glowing effects for active power lines.
@@ -30,6 +32,7 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
   - **Zoom**: Adjustable scale to fit your dashboard.
   - **Custom Colors**: Define custom colors for each source and consumer via the editor.
   - **Background Color**: Enable a slightly tinted background for the circles in the default view.
+  - **Rounded Boxes**: Render the nodes as rounded boxes instead of circles.
 - **More Info**: Click on any source/consumer for detailed information in a more-info dialog.
 - **Grid Import/Export**: Supports both separate Import/Export entities or a combined entity with positive/negative values.
 - **Grid-to-Battery**: Optional direct sensor for Grid-to-Battery flow, bypassing the standard calculation.
