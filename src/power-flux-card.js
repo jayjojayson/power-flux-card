@@ -790,9 +790,11 @@ console.log(
 
       // Calculate Splits: each consumer takes its share of the total, the remainder is the house
       let remainingCons = totalCons;
+      let totalConsumerPower = 0;
       consumers.forEach(c => {
         c.power = (c.val > 0 && remainingCons > 0) ? Math.min(c.val, remainingCons) : 0;
         remainingCons -= c.power;
+        totalConsumerPower += c.power;
       });
       const housePower = remainingCons;
 
@@ -810,9 +812,11 @@ console.log(
       // DESTINATIONS (for Bottom Brackets)
       const destHouse = housePower;
       const destExport = gridExport;
-      // Note: Battery Charge is also a destination (internal flow), but usually not bracketed if we only want "Consumers"
-      // If we don't bracket Charge, there will be a gap. We can accept that or add a Charge bracket.
-      // Given user request "Only EV... and Grid Export", we stick to those.
+      
+      // Calculate total selfused Energy
+      const selfConsum = destHouse + batteryCharge + totalConsumerPower;
+      const selfPV = Math.min(srcSolar, selfConsum);
+      const selfBattery = Math.min(srcBattery, (selfConsum - selfPV));
 
       const threshold = 0.1;
       const availableWidth = (this._cardWidth && this._cardWidth > 0) ? this._cardWidth : (this.offsetWidth || 400);
@@ -844,21 +848,44 @@ console.log(
         currentX += width;
       }
 
-      addSegment(srcBattery, 'var(--neon-green)', 'battery', 'battery', entities.battery);
-      addSegment(srcSolar, 'var(--neon-yellow)', 'solar', 'solar', entities.solar);
+      addSegment(selfPV, 'var(--neon-yellow)', 'solar', 'solar', entities.solar);
+      addSegment(selfBattery, 'var(--neon-green)', 'battery', 'battery', entities.battery);
       addSegment(srcGrid, 'var(--neon-blue)', 'grid', 'grid', entities.grid_combined || entities.grid);
+      addSegment(destExport, 'var(--export-color)', 'export', 'export', entities.grid_combined || entities.grid_export || entities.grid);
 
-      // --- GENERATE TOP BRACKETS (Based on Bar Segments) ---
-      const topBrackets = barSegments.map(s => {
-        const path = this._createBracketPath(s.startPx, s.widthPx, 'down');
+      // --- GENERATE TOP BRACKETS (Independent Calculation) ---
+      // Order: House -> EV -> Export
+      const topBrackets = [];
+      let topX = 0;
+
+      const addtopBracket = (val, type, entityId = null) => {
+        if (val <= threshold) return;
+        const pct = val / totalFlux;
+        const width = pct * fullWidth;
+
         let icon = '';
         let iconColor = '';
-        if (s.type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--icon-solar-color)'; }
-        if (s.type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--icon-grid-color)'; }
-        if (s.type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--icon-battery-color)'; }
 
-        return { path, width: s.widthPx, center: s.startPx + (s.widthPx / 2), icon, iconColor, val: s.val, entityId: s.entityId };
-      });
+        if (type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--icon-solar-color)'; }
+        if (type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--icon-grid-color)'; }
+        if (type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--icon-battery-color)'; }
+
+        const path = this._createBracketPath(topX, width, 'down');
+        topBrackets.push({
+          path,
+          width: width,
+          center: topX + (width / 2),
+          icon,
+          iconColor,
+          val,
+          entityId
+        });
+        topX += width;
+      };
+
+      addtopBracket(srcSolar, 'solar', entities.solar);
+      addtopBracket(srcBattery, 'battery', entities.battery);
+      addtopBracket(srcGrid, 'grid', entities.grid_combined || entities.grid);
 
       // --- GENERATE BOTTOM BRACKETS (Independent Calculation) ---
       // Order: House -> EV -> Export
@@ -874,7 +901,7 @@ console.log(
         let iconColor = '';
 
         if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--icon-house-color)'; }
-        if (type === 'export') { icon = 'mdi:arrow-right-box'; iconColor = 'var(--export-color)'; }
+        if (type === 'export') { icon = 'mdi:transmission-tower'; iconColor = 'var(--export-color)'; }
         if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--icon-battery-color)'; }
         if (iconOverride) { icon = iconOverride; }
         if (iconColorOverride) { iconColor = iconColorOverride; }
@@ -961,17 +988,17 @@ console.log(
                             <span class="compact-detail-label">Solar</span>
                             <span class="compact-detail-value" style="color: var(--text-solar-color, var(--neon-yellow));">${this._formatPower(solar)}</span>
                         </div>` : ''}
-                        ${gridImport > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid) && this._handleClick(entities.grid_combined || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:transmission-tower" style="color: var(--icon-grid-color);"></ha-icon>
-                            <span class="compact-detail-label">Grid</span>
-                            <span class="compact-detail-value" style="color: var(--text-grid-color, var(--neon-blue));">${this._formatPower(gridImport)}</span>
-                        </div>` : ''}
                         ${batteryDischarge > 0 ? html`
                         <div class="compact-detail-item" @click=${() => entities.battery && this._handleClick(entities.battery)} style="cursor: ${entities.battery ? 'pointer' : 'default'};">
                             <ha-icon icon="mdi:battery-arrow-down" style="color: var(--icon-battery-color);"></ha-icon>
                             <span class="compact-detail-label">Batterie</span>
                             <span class="compact-detail-value" style="color: var(--text-battery-color, var(--neon-green));">${this._formatPower(batteryDischarge)}</span>
+                        </div>` : ''}                        
+                        ${gridImport > 0 ? html`
+                        <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid) && this._handleClick(entities.grid_combined || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
+                            <ha-icon icon="mdi:transmission-tower" style="color: var(--icon-grid-color);"></ha-icon>
+                            <span class="compact-detail-label">Grid</span>
+                            <span class="compact-detail-value" style="color: var(--text-grid-color, var(--neon-blue));">${this._formatPower(gridImport)}</span>
                         </div>` : ''}
                     </div>
                     <!-- OUT COLUMN -->
@@ -997,7 +1024,7 @@ console.log(
                         </div>`)}
                         ${gridExport > 0 ? html`
                         <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid_export || entities.grid) && this._handleClick(entities.grid_combined || entities.grid_export || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid_export || entities.grid) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:arrow-right-box" style="color: var(--export-color);"></ha-icon>
+                            <ha-icon icon="mdi:transmission-tower" style="color: var(--export-color);"></ha-icon>
                             <span class="compact-detail-label">Export</span>
                             <span class="compact-detail-value" style="color: var(--export-color);">${this._formatPower(gridExport)}</span>
                         </div>` : ''}
