@@ -867,7 +867,7 @@ console.log(
         let iconColor = '';
 
         if (type === 'solar') { icon = 'mdi:weather-sunny'; iconColor = 'var(--icon-solar-color)'; }
-        if (type === 'grid') { icon = 'mdi:transmission-tower'; iconColor = 'var(--icon-grid-color)'; }
+        if (type === 'grid') { icon = 'mdi:transmission-tower-import'; iconColor = 'var(--icon-grid-color)'; }
         if (type === 'battery') { icon = 'mdi:battery-high'; iconColor = 'var(--icon-battery-color)'; }
 
         const path = this._createBracketPath(topX, width, 'down');
@@ -901,7 +901,7 @@ console.log(
         let iconColor = '';
 
         if (type === 'house') { icon = 'mdi:home'; iconColor = 'var(--icon-house-color)'; }
-        if (type === 'export') { icon = 'mdi:transmission-tower'; iconColor = 'var(--export-color)'; }
+        if (type === 'export') { icon = 'mdi:transmission-tower-export'; iconColor = 'var(--export-color)'; }
         if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = 'var(--icon-battery-color)'; }
         if (iconOverride) { icon = iconOverride; }
         if (iconColorOverride) { iconColor = iconColorOverride; }
@@ -996,7 +996,7 @@ console.log(
                         </div>` : ''}                        
                         ${gridImport > 0 ? html`
                         <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid) && this._handleClick(entities.grid_combined || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:transmission-tower" style="color: var(--icon-grid-color);"></ha-icon>
+                            <ha-icon icon="mdi:transmission-tower-import" style="color: var(--icon-grid-color);"></ha-icon>
                             <span class="compact-detail-label">Grid</span>
                             <span class="compact-detail-value" style="color: var(--text-grid-color, var(--neon-blue));">${this._formatPower(gridImport)}</span>
                         </div>` : ''}
@@ -1024,7 +1024,7 @@ console.log(
                         </div>`)}
                         ${gridExport > 0 ? html`
                         <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid_export || entities.grid) && this._handleClick(entities.grid_combined || entities.grid_export || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid_export || entities.grid) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:transmission-tower" style="color: var(--export-color);"></ha-icon>
+                            <ha-icon icon="mdi:transmission-tower-export" style="color: var(--export-color);"></ha-icon>
                             <span class="compact-detail-label">Export</span>
                             <span class="compact-detail-value" style="color: var(--export-color);">${this._formatPower(gridExport)}</span>
                         </div>` : ''}
