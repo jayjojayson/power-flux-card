@@ -1,9 +1,0 @@
-# Editor / AI helper files (not part of the project)
-.claude/
-plan.md
-
-# macOS
-.DS_Store
-
-# Claude / Cowork generated outputs
-Claude outputs/
