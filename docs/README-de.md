@@ -13,33 +13,35 @@
 
 Die ⚡Power Flux Card ist eine erweiterte, animierte Energiefluss-Karte für Home Assistant. Sie visualisiert die Energieverteilung zwischen Solar, Netz, Batterie und Verbrauchern mit wunderschönen Neon-Effekten und verschiedenen Animationen.
 
-Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewertung ⭐ freuen. 🤗
+Wenn euch die Card gefällt, würde ich mich sehr über eine Sternebewertung ⭐ freuen. 🤗
 
 <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-ani.gif" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card.jpg" />  
 <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact2.jpg" /> <img width="98%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card7.png" />
 
 ### ✨ Funktionen
 
-- **Echtzeit-Animation**: Visualisiert den Energiefluss mit bewegten Partikeln.
-- **Mehrere Quellen & Verbraucher**: Unterstützt Solar, Netz, Batterie und bis zu 5 zusätzliche Verbraucher (z.B. E-Auto, Heizung, Pool).
-- **Bidirektionale Verbraucher**: Jeder Verbraucher kann auch als Erzeuger fungieren — wird sein Sensorwert invertiert, kehrt sich die Flussrichtung um und speist sichtbar ins Haus ein (z.B. für einen zweiten Solar-/Hybrid-Wechselrichter als „Verbraucher").
-- **Mehrere Layouts**: Neben der Standard-Ansicht stehen eine horizontale (um 90° gedrehte) und eine Diamant-Ansicht (Solar oben, Netz links, Batterie rechts, Haus unten) zur Verfügung.
-- **Kompakte Ansicht**: Eine minimalistische Balkendiagramm-Ansicht (inspiriert von evcc).
-- **Anpassbares Aussehen**:
-  - **Neon Glow**: Leuchteffekte für aktive Stromleitungen.
-  - **Donut Chart**: Optionales Donut-Diagramm um das Haus-Icon, das den Energiemix zeigt.
-  - **Kometenschweif / Gestrichelte Linien**: Wählen Sie Ihren bevorzugten Animationsstil.
-  - **Zoom**: Anpassbare Größe für Ihr Dashboard.
-  - **Benutzerdefinierte Farben**: Definiere benutzerdefinierte Farben für jede Quelle und jeden Verbraucher über den Editor.
-  - **Hintergrundfarbe**: Aktiviere einen leicht getönten Hintergrund für die Kreise in der Standard-Ansicht.
-  - **Boxen statt Kreise**: Stelle alle Knoten als Boxen mit runden Ecken statt als Kreise dar.
-- **Dynamische Animationsgeschwindigkeit**: Partikelgeschwindigkeit und -dichte passen sich dem aktuellen Energiefluss an.
-- **Weitere Informationen**: Klicke auf eine beliebige Quelle/Verbraucher, um detaillierte Informationen in einem More-Info-Dialog anzuzeigen.
-- **Netz-Import/Export**: Unterstützt sowohl separate Import/Export-Entitäten als auch eine kombinierte Entität mit positiven/negativen Werten.
-- **Netz-zu-Batterie**: Optionaler direkter Sensor für den Netz-zu-Batterie-Fluss, der die Standardberechnung umgeht.
-- **Sekundäre Sensoren**: Optional können sekundäre Sensorwerte in den Hauptkreisen (z.B. Tagesertrag für Solar, aktuelle Lade-/Entladeleistung für Batterie) angezeigt werden.
-- **Lokalisierung**: Vollständig übersetzt in Deutsch und Englisch.
-- **Visueller Editor**: Einfache Konfiguration über die Home Assistant UI.
+**Darstellung**
+- **Echtzeit-Animation**: Energieflüsse werden als bewegte Partikel dargestellt. Geschwindigkeit und Dichte passen sich der aktuellen Leistung an — je mehr Leistung, desto schneller der Fluss.
+- **Mehrere Layouts**: Standard-Ansicht, **horizontale** Ansicht (um 90° gedreht), **Diamant**-Ansicht (Solar oben, Netz links, Batterie rechts, Haus unten), **Boxen mit runden Ecken** statt Kreise und die minimalistische **Kompakte Ansicht** (Balkendiagramm, inspiriert von evcc).
+- **Anpassbares Aussehen**: Neon Glow, Donut-Diagramm um Haus/Netz, Kometenschweif oder gestrichelte Flusslinien, getönter Bubble-Hintergrund, farbige Textwerte, Zoom und individuelle Farben je Quelle und Verbraucher (Bubble, Röhre, Text, Icon, Secondary).
+- **Flussraten an den Röhren**: Die Leistung (W/kW) lässt sich direkt an den Röhren anzeigen — je Quelle schaltbar.
+- **Einheiten**: Werte wechseln automatisch zwischen W und kW (kW ab 1000 W) — oder du erzwingst eine Einheit für die gesamte Karte.
+- **Label, Icons & Zusatzsensoren**: Jeder Knoten bekommt eigenes Label und Icon sowie einen optionalen zweiten Sensor (z.B. Tagesertrag, Ladeleistung); Verbraucher und Haus unterstützen zusätzlich einen **dritten Sensor**.
+- **Styling mit UIX**: Alle Farben, Größen und Röhren-Transparenzen sind CSS-Variablen — auch dynamisch per Jinja2-Template (siehe [Styling mit UIX](#-styling-mit-uix)).
+
+**Quellen, Speicher & Verbraucher**
+- **Solar**: Ein oder **mehrere Solar-Sensoren** (z.B. mehrere Wechselrichter) werden zu einem Wert addiert.
+- **Netz**: Separate Import-/Export-Entitäten **oder** eine kombinierte Entität (positiv = Bezug, negativ = Einspeisung), optionale Wertumkehr und ein optionaler **Netz-Schwellenwert**, der Rauschen um 0 W unterdrückt.
+- **Mehrere Batterien (bis zu 4)**: Im Card-Editor lassen sich bis zu drei weitere Batterien hinzufügen. Die Röhre zeigt stets die **Summe**; die Batterie-Bubble lässt sich optional in **Ring-Segmente** oder einen **Kuchen** aufteilen, der den SOC jeder Batterie zeigt.
+- **Batterie-Details**: Ein kombinierter Sensor oder getrennte Lade-/Entlade-Sensoren, SOC, optionaler Netz-zu-Batterie-Sensor, Ladung über das Haus leiten, Leistung statt SOC anzeigen, unterhalb eines Ladestands ausblenden.
+- **Bis zu 5 zusätzliche Verbraucher** (z.B. E-Auto, Heizung, Pool) mit eigenen Icons, Labels, Farben, zweitem/drittem Sensor, Standby-Filter und Röhren-Schwellenwert.
+- **Bidirektionale Verbraucher**: Wird der Sensorwert eines Verbrauchers invertiert, kehrt sich die Flussrichtung um und speist ins Haus ein (z.B. ein zweiter Solar-/Hybrid-Wechselrichter als „Verbraucher“).
+- **Haus**: Wird automatisch berechnet oder aus einem eigenen Gesamtverbrauchs-Sensor übernommen.
+
+**Bedienung**
+- **Weitere Informationen**: Tippe auf eine Bubble, um den More-Info-Dialog des zugehörigen Sensors zu öffnen.
+- **Visueller Editor**: Alles oben Genannte lässt sich in der Home-Assistant-Oberfläche konfigurieren — YAML ist nicht nötig.
+- **Lokalisierung**: Deutsch und Englisch.
 
 [![Watch the video](https://img.youtube.com/vi/HGFBJJRWGW0/0.jpg)](https://www.youtube.com/watch?v=HGFBJJRWGW0
 )
@@ -75,43 +77,379 @@ Wenn euch die custom Card gefällt, würde ich mich sehr über eine Sternebewert
 
 ### ⚙️ Konfiguration
 
-Du kannst die Karte direkt über den visuellen Editor in Home Assistant konfigurieren.
+Du kannst die gesamte Karte im visuellen Editor von Home Assistant konfigurieren — YAML ist nicht nötig. Füge die Karte einem Dashboard hinzu (**Karte hinzufügen → Power Flux Card**) und nutze den Editor links. Wer lieber YAML schreibt: Jedes Editor-Feld hat einen passenden Schlüssel, aufgelistet in der [YAML-Referenz](#yaml-referenz).
 
-**Haupt-Entitäten:**
-- **Solar**: Erzeugung (W).
-- **Netz**: Netzleistung (W). Positiv = Import, Negativ = Export (oder separate Entitäten).
-- **Batterie**: Batterieleistung (W) und Ladestand (%).
-- **Bei null Watt ausblenden**: Optionaler Schalter (`show_producer_always`), um Solar und Netz auszublenden, sobald sie auf 0 W zurückfallen — analog zu inaktiven Verbrauchern. Standardmäßig aktiviert, damit bestehende Dashboards weiterhin alles dauerhaft anzeigen. Für die Batterie erscheint bei deaktiviertem Schalter stattdessen ein Slider (`battery_hide_soc_threshold`), um sie unterhalb eines bestimmten Ladestands (%) auszublenden — da im Batterie-Node der Ladestand angezeigt wird und die Leistung je nach Richtung positiv oder negativ sein kann.
+**Inhalt:** [Schnellstart](#schnellstart) · [Editor-Überblick](#editor-überblick) · [Solar](#solar) · [Netz](#netz) · [Batterie](#batterie) · [Haus & zusätzliche Verbraucher](#haus--zusätzliche-verbraucher) · [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren) · [Farben](#farben) · [Darstellung & Optionen](#darstellung--optionen) · [Kompakte Ansicht](#kompakte-ansicht-evcc) · [YAML-Referenz](#yaml-referenz) · [Vollständiges Beispiel](#vollständiges-beispiel) · [Fehlerbehebung](#fehlerbehebung) · [Styling mit UIX](#-styling-mit-uix)
 
-**Zusätzliche Verbraucher:**
-- Du kannst bis zu 5 individuelle Verbraucher (z.B. Auto, Heizung, Pool) mit eigenen Icons und Beschriftungen hinzufügen.
-- **Sensorwert invertieren**: Für jeden Verbraucher verfügbar. Wird der (invertierte) Wert negativ, kehrt sich die Flussanimation um — der Verbraucher speist dann ins Haus ein (z.B. ein zweiter Solar-/Hybrid-Wechselrichter).
-- **Pipe bei geringer Leistung ausblenden**: Blendet unterhalb eines individuellen Watt-Schwellenwerts nur die Verbindungsröhre aus — die Bubble bleibt sichtbar.
-- **Standby-Werte ausblenden**: Optionaler Schwellenwert je Verbraucher (0–100 W), unterhalb dessen der Messwert als 0 W gilt — Geräte im Standby (z.B. 1–3 W) verschwinden damit vollständig (Bubble und Röhre).
-- Verbraucher werden auch in der Kompakten Ansicht (evcc) mit ihren konfigurierten Icons, Beschriftungen und Farben angezeigt.
+#### Schnellstart
 
-**Optionen:**
-- **Zoom**: Passen Sie die Größe der Karte an.
-- **Neon Glow**: Aktivieren/Deaktivieren des Leuchteffekts.
-- **Donut Chart**: Zeigt den Energiemix als Ring um das Haus an.
-- **Kometenschweif / Gestrichelte Linie**: Ändern Sie den Stil der Flussanimation.
-- **Kompakte Ansicht**: Wechseln Sie zum Balkendiagramm-Layout. Optionen: Detailtabelle, Neon Glow, *Icons in die Klammern setzen* — die Icons wandern aus dem Inneren der Klammern mittig auf die Klammerlinie und unterbrechen sie — sowie *Einspeisung in den Balken aufnehmen* — dabei wandert die Einspeisung als eigenes Segment in den mittleren Balken, und Solar/Batterie zeigen nur noch den im Haus genutzten Anteil.
-- **Horizontale / Diamant-Ansicht**: Alternative Layouts zur Standard-Ansicht — um 90° gedreht (horizontal) oder mit Solar oben, Netz links und Batterie rechts (Diamant).
-- **Boxen statt Kreise**: Stellt die Knoten als Boxen mit runden Ecken statt als Kreise dar.
-- **Farboptionen**: Definieren Sie benutzerdefinierte Farben für jede Quelle und Verbraucher. Bei aktivierter kompakter Ansicht bietet der Batterie-Tab zwei vollständige Farbzeilen (Ladung und Entladung) mit jeweils Bubble, Pipe, Text, Icon und Secondary.
+Eine minimale Konfiguration braucht nur deine Leistungs-Sensoren:
 
-> **Farbrollen in der kompakten Ansicht:** Jedes Farbfeld hat ein festes Ziel — **Bubble** = Balkensegment, **Pipe** = Klammerlinie, **Icon** = Symbole, **Text** = Wert, **Secondary** = Beschriftung in der Detailliste. Die Klammerlinie folgt weiterhin der Icon-Farbe, solange keine eigene Pipe-Farbe gesetzt ist.
-- **Netz-Import/Export**: Konfigurieren Sie separate oder kombinierte Entitäten.
-- **Netzwert umkehren**: Für Wechselrichter, die Export positiv und Import negativ melden.
-- **Netz-zu-Batterie**: Optionaler direkter Sensor für den Netz-zu-Batterie-Fluss.
-- **Batterie getrennte Sensoren**: Optional separate Sensoren für Batterie-Ladung und -Entladung. 
-- **Sekundäre Sensoren**: Zeigen Sie alternative Werte in den Hauptkreisen an (z.B. Tagesertrag, aktuelle Ladeleistung). Bei den Verbrauchern und beim Gesamtverbrauch lässt sich zusätzlich ein **dritter Sensor** konfigurieren — beide teilen sich eine Zeile, getrennt durch ` / `, und nutzen die Secondary-Farbe.
+```yaml
+type: custom:power-flux-card
+entities:
+  solar: sensor.solar_power
+  grid_combined: sensor.grid_power   # positiv = Bezug, negativ = Einspeisung
+  battery: sensor.battery_power      # positiv = laden, negativ = entladen
+  battery_soc: sensor.battery_soc
+```
 
+Alles andere ist optional. Der Hausverbrauch wird automatisch aus Solar, Netz und Batterie berechnet, solange du keinen eigenen Sensor angibst.
+
+> **Einheiten:** Die Karte erwartet **Watt**. Meldet ein Sensor kW, aktiviere die kW-Option des jeweiligen Knotens (siehe unten) — die Karte rechnet dann um.
+
+#### Editor-Überblick
+
+Der Editor hat zwei Bereiche:
+
+| Bereich | Inhalt |
+|---|---|
+| **Haupt Entitäten** | Vier Unterseiten: **Solar/PV**, **Netz Import/Export**, **Batterie** und **Zusätzliche Verbraucher** (dort steht auch der optionale Haus-Sensor). Jede Unterseite enthält die Sensoren, Beschriftung, Icon, zweiten Sensor, Farben und die knotenspezifischen Schalter. |
+| **Darstellung & Optionen** | Kartenweite Einstellungen in vier Gruppen: **Layout & Ansicht**, **Effekte & Darstellung**, **Röhren & Verbraucher** und **Kompakte Ansicht (evcc)**. |
+
+#### Solar
+
+*Editor: Haupt Entitäten → Solar/PV*
+
+| Einstellung | YAML-Schlüssel | Funktion |
+|---|---|---|
+| Solar-Sensor (W) | `entities.solar` | Aktuelle Solarerzeugung. |
+| Weitere Solaranlage hinzufügen | `entities.solar_extra` (Liste) | Zusätzliche Solar-Sensoren für mehrere Wechselrichter. **Alle Sensoren werden addiert** und als ein Solarwert angezeigt. Ein Tipp auf die Bubble öffnet den ersten konfigurierten Sensor. |
+| Beschriftung / Icon | `solar_label`, `solar_icon` | Name und Icon der Bubble. |
+| Zweiter Sensor | `entities.secondary_solar` | Wird zusätzlich zum Hauptwert in der Bubble angezeigt, z.B. der Tagesertrag. |
+| Farben Bubble / Pipe / Text / Icon / Secondary | `color_solar`, `color_pipe_solar`, `color_text_solar`, `color_icon_solar`, `color_secondary_solar` | Siehe [Farben](#farben). |
+| Label statt secondary entity anzeigen | `show_label_solar` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
+| Solar in kW anzeigen | `solar_unit_kw` | Aktivieren, wenn deine Solar-Sensoren **kW melden**. Die Karte rechnet in W um. Gilt für *alle* Solar-Sensoren, gemischte Einheiten werden nicht unterstützt. |
+| Flussraten an Röhren anzeigen | `show_flow_rate_solar` | Zeigt die Leistung an den Solar-Röhren (Standard: an). |
+
+```yaml
+entities:
+  solar: sensor.wechselrichter_1_leistung
+  solar_extra:
+    - sensor.wechselrichter_2_leistung
+    - sensor.wechselrichter_3_leistung
+```
+
+#### Netz
+
+*Editor: Haupt Entitäten → Netz Import/Export*
+
+Die Karte unterstützt drei Arten, den Netzanschluss zu beschreiben. Wähle die, die zu deinen Sensoren passt:
+
+| Deine Sensoren | Konfiguration | Verhalten |
+|---|---|---|
+| **Ein Sensor** mit positiv = Bezug und negativ = Einspeisung | **Kombinierter Netz-Sensor** (`entities.grid_combined`) | Die einfachste Variante. Ist er gesetzt, hat er Vorrang vor den folgenden Sensoren. |
+| **Zwei Sensoren**, einer für Bezug und einer für Einspeisung | **Import** (`entities.grid`) und **Export** (`entities.grid_export`) | Beide Werte werden unabhängig gelesen (das Vorzeichen des Export-Werts wird ignoriert). |
+| **Ein Sensor** mit Vorzeichen (positiv = Bezug, negativ = Einspeisung) | Nur **Import** (`entities.grid`) | Negative Werte gelten als Einspeisung. |
+
+Weitere Optionen auf dieser Seite:
+
+- **Beschriftung / Icon** (`grid_label`, `grid_icon`), **Zweiter Sensor** (`entities.secondary_grid`) und die fünf **Farben** (`color_grid`, `color_pipe_grid`, `color_text_grid`, `color_icon_grid`, `color_secondary_grid`).
+- **Export-Farben und -Icon** (`color_export`, `color_pipe_export`, `color_text_export`, `color_icon_export`, `color_secondary_export`, `export_icon`): Netz-Bubble, Röhre, Wert und Icon können beim Einspeisen eine andere Farbe haben — und die Export-Klammer der kompakten Ansicht ein anderes Icon. Solange sie nicht gesetzt sind, folgen sie der Export-*Bubble*-Farbe.
+- **Label statt secondary entity anzeigen** (`show_label_grid`), **Flussraten an Röhren anzeigen** (`show_flow_rate_grid`).
+- **Grid in kW anzeigen** (`grid_unit_kw`): Aktivieren, wenn deine Netz-Sensoren **kW melden**. Die Karte rechnet in W um.
+- **Wert umkehren (+/-)** (`invert_grid`): Kehrt das Vorzeichen des Netz-Sensors (und des kombinierten Sensors) um — für Wechselrichter, die Einspeisung positiv und Bezug negativ melden. Der separate Export-Sensor wird nicht umgekehrt.
+- **Netz-Schwellenwert (W)** (`grid_threshold`, 0–500 W, Standard `0` = aus): Bezug oder Einspeisung **unterhalb dieses Werts gilt als 0 W**. Ein ausgeglichenes Netz pendelt oft um wenige Watt um null, wodurch die Bubble ständig zwischen Bezug und Einspeisung wechselt. Setze z.B. `10`, um die Anzeige zu beruhigen. Bezug und Einspeisung werden getrennt geprüft. Der Schwellenwert wirkt in der Standard- und der Kompakten Ansicht; der berechnete Hausverbrauch nutzt die bereinigten Werte und kann deshalb um bis zu den Schwellenwert vom realen Wert abweichen.
+
+```yaml
+entities:
+  grid_combined: sensor.netz_leistung
+grid_threshold: 10
+```
+
+#### Batterie
+
+*Editor: Haupt Entitäten → Batterie*
+
+**Einzelne Batterie**
+
+| Einstellung | YAML-Schlüssel | Funktion |
+|---|---|---|
+| Kombinierter Batterie Sensor (W) | `entities.battery` | Ein Sensor mit Vorzeichen: **positiv = laden, negativ = entladen**. |
+| Batterie-Ladung / -Entladung Sensor | `entities.battery_charge`, `entities.battery_discharge` | Optionale getrennte Sensoren. Wenn gesetzt, ersetzen sie den kombinierten Sensor für die Berechnung. |
+| Ladestand (%) | `entities.battery_soc` | Wird in der Bubble angezeigt. |
+| Beschriftung / Icon | `battery_label`, `battery_icon` | Name und Icon der Bubble. |
+| Netz-zu-Batterie Sensor (W) | `entities.grid_to_battery` | Optional. Wenn leer, wird der aus dem Netz geladene Anteil berechnet (Solar wird zuerst genutzt, der Rest kommt aus dem Netz). |
+| Zweiter Sensor | `entities.secondary_battery` | Zusätzlicher Wert in der Bubble (z.B. die aktuelle Leistung). |
+| Farben | `color_battery`, `color_pipe_battery`, `color_text_battery`, `color_icon_battery`, `color_secondary_battery` | Siehe [Farben](#farben). |
+| Label statt secondary entity anzeigen | `show_label_battery` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
+| Batterie Leistung in kW anzeigen | `battery_unit_kw` | Aktivieren, wenn deine Batterie-Sensoren **kW melden**. Die Karte rechnet in W um. |
+| Flussraten an Röhren anzeigen | `show_flow_rate_battery` | Zeigt die Leistung an den Batterie-Röhren (Standard: an). |
+| Wert umkehren (+/-) | `invert_battery` | Für Sensoren mit umgekehrtem Vorzeichen (Laden negativ / Entladen positiv, z.B. GivTCP oder Solax). Stimmt die Flussrichtung nicht — etwa eine Solar-/Netz → Batterie-Röhre beim Entladen — schalte dies ein. |
+| Batterie-Ladung über Hausverbrauch umleiten | `battery_charge_via_house` | Entfernt die direkten Röhren Solar → Batterie und Netz → Batterie. Die Ladeenergie wird stattdessen über das Haus geführt. |
+| Zeige Leistung statt SoC | `battery_show_power` | Die Bubble zeigt die Batterieleistung statt des Ladestands. |
+
+**Mehrere Batterien (bis zu 4)**
+
+Mit **Weitere Batterie hinzufügen** konfigurierst du bis zu drei weitere Batterien — insgesamt vier. Jede zusätzliche Batterie hat — wie die Hauptbatterie — einen eigenen Sensor (kombiniert **oder** getrennt für Laden/Entladen), einen eigenen SOC-Sensor, einen „meldet kW“-Schalter und einen „Wert umkehren“-Schalter. Die zusätzlichen Batterien werden in `entities.batteries_extra` gespeichert.
+
+```yaml
+entities:
+  battery: sensor.batterie_1_leistung
+  battery_soc: sensor.batterie_1_soc
+  batteries_extra:
+    - power: sensor.batterie_2_leistung
+      soc: sensor.batterie_2_soc
+    - charge: sensor.batterie_3_ladeleistung       # getrennte Sensoren statt "power"
+      discharge: sensor.batterie_3_entladeleistung
+      soc: sensor.batterie_3_soc
+      unit_kw: false
+      invert: false
+```
+
+So werden mehrere Batterien zusammengefasst:
+
+- **Leistung:** Lade- und Entladeleistung aller Batterien werden **addiert**. Röhre, Flussrate und Hausberechnung nutzen immer die Summe.
+- **SOC:** Die Bubble zeigt den **Durchschnitt** aller Batterien, die einen SOC-Sensor haben.
+- **Klick:** Ein Tipp auf die Bubble öffnet den More-Info-Dialog des Batterie-Sensors (der Hauptbatterie bzw. der ersten zusätzlichen, falls kein Hauptsensor gesetzt ist).
+- Das funktioniert in jedem Layout, auch in der Kompakten Ansicht.
+
+**Den SOC jeder Batterie anzeigen — zwei optionale Ansichten** (ab 2 Batterien aktiv, die Schalter schließen sich gegenseitig aus):
+
+| Schalter | YAML-Schlüssel | Ergebnis |
+|---|---|---|
+| Aufteilung: Ring-Segmente (SOC je Batterie) | `battery_split_ring` | Der Rand der Bubble wird in gleich große Bögen geteilt — einer je Batterie. Jeder Bogen füllt sich nach dem SOC der Batterie (rot bei 20 % oder weniger). Icon, Name und der Durchschnitts-SOC bleiben in der Mitte. Im Box-Modus folgt der Ring dem abgerundeten Rechteck. |
+| Aufteilung: Kuchensegmente (max 4) | `battery_split_quarters` | Die Bubble wird in Sektoren geteilt, die den Kreis immer vollständig füllen: 2 Batterien = zwei Hälften, 3 = zwei obere Viertel + eine untere Hälfte, 4 = vier Viertel. Jeder Sektor zeigt nur den SOC-Wert der Batterie (nach Ladestand eingefärbt, rot bei 20 % oder weniger). Die große Zahl in der Mitte ist der Durchschnitts-SOC. |
+
+**Batterie bei leerem Speicher ausblenden:** Schalte *Erzeuger bei null Watt anzeigen* aus (siehe [Darstellung & Optionen](#darstellung--optionen)) und setze **Batterie ausblenden unter Ladestand (%)** (`battery_hide_soc_threshold`).
+
+**Kompakte Ansicht:** Bei aktivierter Kompakter Ansicht bietet diese Seite zwei vollständige Farbreihen — eine für **Ladung** und eine für **Entladung** (`color_battery_charge…` und `color_battery_discharge…`).
+
+#### Haus & zusätzliche Verbraucher
+
+*Editor: Haupt Entitäten → Zusätzliche Verbraucher*
+
+**Haus (Gesamtverbrauch, optional)**
+
+- **Sensor für Hausverbrauch** (`entities.house`): Ohne Sensor berechnet die Karte den Verbrauch (Solar → Haus + Netz → Haus + Batterie-Entladung). Mit eigenem Sensor wird der gemessene Wert angezeigt — und die Haus-Bubble wird anklickbar (More-Info).
+- **Beschriftung, Icon** (`house_label`, `house_icon`), **Zweiter** und **Dritter Sensor** (`entities.secondary_house`, `entities.tertiary_house`), **Farben** (`color_house`, `color_text_house`, `color_icon_house`, `color_secondary_house`) und **Label statt secondary entity anzeigen** (`show_label_house`).
+
+**Verbraucher 1–5**
+
+Bis zu fünf Verbraucher mit festen Positionen: 1 = links (lila), 2 = Mitte (orange), 3 = rechts (türkis), 4 = zweite Reihe links (gelb), 5 = zweite Reihe rechts (indigo). Klicke im Editor auf einen Verbraucher, um seine Einstellungen aufzuklappen. `N` steht für 1–5:
+
+| Einstellung | YAML-Schlüssel | Funktion |
+|---|---|---|
+| Entität | `entities.consumer_N` | Leistungs-Sensor des Verbrauchers. |
+| Beschriftung / Icon | `consumer_N_label`, `consumer_N_icon` | Name und Icon. |
+| Sensorwert invertieren (+/-) | `invert_consumer_N` | Macht den Verbraucher zum **Erzeuger**: Ist der (invertierte) Wert negativ, kehrt sich der Fluss um und speist ins Haus ein (z.B. ein zweiter Solar- oder Hybrid-Wechselrichter). |
+| Sensor meldet in kW | `consumer_N_unit_kw` | Aktivieren, wenn der Sensor kW meldet. |
+| Standby-Werte ausblenden + Schwellenwert | `consumer_N_standby`, `consumer_N_standby_threshold` | Werte unterhalb des Schwellenwerts (0–100 W) gelten als 0 W, ein Gerät im Standby (z.B. 1–3 W) verschwindet damit vollständig (Bubble und Röhre). |
+| Pipe bei geringer Leistung ausblenden + Schwellenwert | `consumer_N_hide_pipe`, `consumer_N_pipe_threshold` | Blendet nur die Röhre unterhalb des Schwellenwerts (0–2000 W) aus — die Bubble bleibt sichtbar. |
+| Zweiter / Dritter Sensor | `entities.secondary_consumer_N`, `entities.tertiary_consumer_N` | Beide werden in einer Zeile, getrennt durch ` / `, in der Secondary-Farbe angezeigt. |
+| Farben | `color_consumer_N`, `color_pipe_consumer_N`, `color_text_consumer_N`, `color_icon_consumer_N`, `color_secondary_consumer_N` | Siehe [Farben](#farben). |
+
+Ob ruhende Verbraucher überhaupt angezeigt werden, steuerst du global unter [Darstellung & Optionen](#darstellung--optionen).
+
+#### Labels, Icons & Zusatzsensoren
+
+- **Beschriftung** und **Icon** lassen sich für Solar, Netz, Batterie, Haus und jeden Verbraucher setzen. In der Kompakten Ansicht werden die gesetzten Icons in den Klammern und in der Detailliste verwendet.
+- Der **zweite Sensor** wird in der Bubble angezeigt. Der **dritte Sensor** (nur Verbraucher und Haus) teilt sich die Zeile, getrennt durch ` / `.
+- Die Beschriftung erscheint in der Bubble **nur, wenn kein zweiter Sensor konfiguriert ist** — ein konfigurierter zweiter Sensor hat Vorrang. Soll stattdessen die Beschriftung erscheinen, schalte **Label statt secondary entity anzeigen** ein (`show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house`). In der Kompakten Ansicht werden Beschriftungen nur in der Detailliste verwendet.
+
+#### Farben
+
+Jede Quelle und jeder Verbraucher hat bis zu fünf Farbwähler:
+
+| Wähler | Bedeutung |
+|---|---|
+| **Bubble** | Rand/Leuchten der Bubble (Kompakte Ansicht: das Balkensegment). |
+| **Pipe** | Die Röhre und die Flusspartikel (Kompakte Ansicht: die Klammerlinie, die der Icon-Farbe folgt, bis eine Pipe-Farbe gesetzt ist). |
+| **Text** | Der Wert. |
+| **Icon** | Das Icon. |
+| **Secondary** | Zweiter Wert bzw. Beschriftung (Kompakte Ansicht: Beschriftung in der Detailliste). |
+
+Die Schlüssel folgen dem Muster `color_<knoten>`, `color_pipe_<knoten>`, `color_text_<knoten>`, `color_icon_<knoten>` und `color_secondary_<knoten>`; `<knoten>` ist `solar`, `grid`, `export`, `battery`, `battery_charge`, `battery_discharge`, `house` (ohne Pipe-Farbe) oder `consumer_1` … `consumer_5`. Mit **Farbige Textwerte** (`use_colored_values`) werden die Werttexte in den Knotenfarben dargestellt. Für Farben, die sich mit Sensorwerten ändern (z.B. eine Batterie, die bei niedrigem Ladestand rot wird), siehe [Styling mit UIX](#-styling-mit-uix).
+
+#### Darstellung & Optionen
+
+*Editor: Darstellung & Optionen*
+
+**Layout & Ansicht**
+
+| Einstellung | YAML-Schlüssel | Standard | Funktion |
+|---|---|---|---|
+| Horizontale Ansicht | `horizontal_view` | aus | Dreht das Standard-Layout um 90°. |
+| Diamant Ansicht | `diamond_view` | aus | Solar oben, Netz links, Batterie rechts, Haus unten. Wird ignoriert, wenn die horizontale Ansicht aktiv ist. |
+| Boxen mit runden Ecken statt Kreise | `use_boxes` | aus | Stellt jeden Knoten als Box mit runden Ecken dar. |
+| Zoom (Standard View) | `zoom` | `0.9` | Skaliert die Karte zwischen 0,3 und 1,0. |
+
+**Effekte & Darstellung**
+
+| Einstellung | YAML-Schlüssel | Standard | Funktion |
+|---|---|---|---|
+| Neon Glow | `show_neon_glow` | an | Leuchten um aktive Bubbles und Röhren. |
+| Donut Chart (Grid/Haus) | `show_donut_border` | aus | Ring um Netz- und Haus-Bubble, der den Energiemix zeigt. |
+| Comet Tail Effect | `show_comet_tail` | aus | Flusspartikel mit Schweif. |
+| Dashed Line Effect | `show_dashed_line` | aus | Fluss als bewegte Striche. |
+| Farbiger Hintergrund in Kreisen | `show_tinted_background` | aus | Leicht getönter Bubble-Hintergrund in der Standard-Ansicht. |
+| Farbige Textwerte | `use_colored_values` | aus | Werttexte in den Knotenfarben. |
+
+**Röhren & Verbraucher**
+
+| Einstellung | YAML-Schlüssel | Standard | Funktion |
+|---|---|---|---|
+| Inaktive Röhren ausblenden | `hide_inactive_flows` | an | Röhren ohne Fluss werden ausgeblendet. |
+| Verbraucher bei null Watt anzeigen | `show_consumer_always` | aus | Verbraucher bleiben bei 0 W sichtbar. Aus: Ruhende Verbraucher verschwinden. |
+| Erzeuger bei null Watt anzeigen | `show_producer_always` | an | Aus: Solar und Netz verschwinden bei 0 W. Die Batterie blendet sich dann nach ihrem Ladestand aus (`battery_hide_soc_threshold`, 0–100 %), da ihre Leistung um null pendeln kann. |
+| Icons unten ausblenden | `hide_consumer_icons` | aus | Blendet die Icons der Verbraucher aus. |
+| Alle Werte in Watt / kW anzeigen | `force_watt_display`, `force_kw_display` | aus | Standardmäßig werden Werte bis 1000 W in W und darüber in kW angezeigt. Diese Schalter erzwingen eine Einheit für die ganze Karte. Das Einschalten des einen schaltet den anderen aus. |
+| Flussraten an Röhren (global) | `show_flow_rates` | an | Nur per YAML. Standardwert für alle `show_flow_rate_*`-Schalter; die Schalter je Knoten überschreiben ihn. |
+
+#### Kompakte Ansicht (evcc)
+
+*Editor: Darstellung & Optionen → Kompakte Ansicht (evcc)*
+
+Die Kompakte Ansicht ersetzt die Bubbles durch ein minimalistisches Balkendiagramm: Die Klammern über dem Balken zeigen die Quellen (Solar, Netz, Batterie), der Balken in der Mitte zeigt, woher die Energie kommt, und die Klammern darunter zeigen, wohin sie geht (Haus, Batterie-Ladung, Einspeisung).
+
+| Einstellung | YAML-Schlüssel | Funktion |
+|---|---|---|
+| Kompakte Ansicht aktivieren | `compact_view` | Schaltet die Karte auf das kompakte Layout. |
+| Details für Kompakte Ansicht | `compact_details` | Fügt unter dem Balken eine Detailliste mit allen Werten hinzu. |
+| Neon Glow in kompakter Ansicht | `compact_glow` | Leuchteffekt für den Balken. |
+| Icons in die Klammern setzen | `compact_icons_in_bracket` | Aus: Die Icons stehen innerhalb der Klammern, die Klammerlinie läuft durchgehend. An: Die Icons sitzen mittig auf der Klammerlinie und unterbrechen sie. |
+| Einspeisung in den Balken aufnehmen | `compact_bar_selfuse` | Aus: Der Balken zeigt die Quellen in voller Höhe, die Einspeisung erscheint als Klammer darunter. An: Die Einspeisung wird ein farbiges Segment im Balken, Solar und Batterie zeigen nur den im Haus genutzten Anteil. |
+
+In der Kompakten Ansicht erscheinen Verbraucher mit ihren konfigurierten Icons, Beschriftungen und Farben, und die Batterie kann getrennte Farben für Ladung und Entladung nutzen.
+
+#### YAML-Referenz
+
+Alle Optionen im Überblick. Optionen ohne Standardwert sind aus bzw. leer, sofern nichts anderes angegeben ist.
+
+**`entities`**
+
+| Schlüssel | Beschreibung |
+|---|---|
+| `solar` | Solar-Leistungssensor |
+| `solar_extra` | Liste weiterer Solar-Sensoren (werden mit `solar` addiert) |
+| `grid` | Netz-Sensor (Bezug, bzw. mit Vorzeichen, wenn kein Export-Sensor gesetzt ist) |
+| `grid_export` | Separater Export-Sensor |
+| `grid_combined` | Kombinierter Netz-Sensor (positiv = Bezug, negativ = Einspeisung); hat Vorrang |
+| `battery` | Batterie-Leistungssensor (positiv = laden, negativ = entladen) |
+| `battery_charge`, `battery_discharge` | Getrennte Lade-/Entlade-Sensoren |
+| `battery_soc` | Ladestand der Batterie (%) |
+| `grid_to_battery` | Direkter Netz-zu-Batterie-Sensor |
+| `batteries_extra` | Liste von bis zu 3 weiteren Batterien: `power` **oder** `charge` + `discharge`, dazu `soc`, `unit_kw`, `invert` |
+| `house` | Gesamtverbrauchs-Sensor (sonst berechnet) |
+| `consumer_1` … `consumer_5` | Verbraucher-Sensoren |
+| `secondary_solar`, `secondary_grid`, `secondary_battery`, `secondary_house`, `secondary_consumer_N` | Zweite Anzeige-Sensoren |
+| `tertiary_house`, `tertiary_consumer_N` | Dritte Anzeige-Sensoren |
+
+**Knoten**
+
+| Schlüssel | Standard | Beschreibung |
+|---|---|---|
+| `solar_label`, `grid_label`, `battery_label`, `house_label`, `consumer_N_label` | – | Beschriftung |
+| `solar_icon`, `grid_icon`, `battery_icon`, `house_icon`, `consumer_N_icon`, `export_icon` | – | Icon (z.B. `mdi:solar-power`) |
+| `show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house` | `false` | Beschriftung statt zweitem Sensor anzeigen |
+| `solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw` | `false` | Der Sensor meldet kW (wird in W umgerechnet) |
+| `show_flow_rate_solar`, `show_flow_rate_grid`, `show_flow_rate_battery` | `true` | Flussrate an den Röhren |
+| `invert_grid`, `invert_battery`, `invert_consumer_N` | `false` | Vorzeichen des Sensors umkehren |
+| `grid_threshold` | `0` | Netzbezug/-einspeisung unterhalb dieses Werts (W) gilt als 0 |
+| `battery_charge_via_house` | `false` | Batterie-Ladung über das Haus führen |
+| `battery_show_power` | `false` | Leistung statt SOC in der Batterie-Bubble anzeigen |
+| `battery_hide_soc_threshold` | `0` | Batterie bei diesem Ladestand oder darunter ausblenden (benötigt `show_producer_always: false`) |
+| `battery_split_ring`, `battery_split_quarters` | `false` | Ansichten für mehrere Batterien (ab 2 Batterien, schließen sich aus) |
+| `consumer_N_standby`, `consumer_N_standby_threshold` | `false`, `0` | Standby-Filter (W) |
+| `consumer_N_hide_pipe`, `consumer_N_pipe_threshold` | `false`, `0` | Röhre unterhalb eines Schwellenwerts (W) ausblenden |
+| `color_<knoten>`, `color_pipe_<knoten>`, `color_text_<knoten>`, `color_icon_<knoten>`, `color_secondary_<knoten>` | – | Farben (siehe [Farben](#farben)) |
+
+**Karte**
+
+| Schlüssel | Standard | Beschreibung |
+|---|---|---|
+| `zoom` | `0.9` | Skalierung 0,3–1,0 |
+| `horizontal_view`, `diamond_view`, `use_boxes` | `false` | Layout |
+| `show_neon_glow` | `true` | Neon Glow |
+| `show_donut_border`, `show_comet_tail`, `show_dashed_line`, `show_tinted_background`, `use_colored_values` | `false` | Effekte |
+| `hide_inactive_flows` | `true` | Röhren ohne Fluss ausblenden |
+| `show_consumer_always` | `false` | Verbraucher bei 0 W anzeigen |
+| `show_producer_always` | `true` | Solar/Netz bei 0 W anzeigen |
+| `hide_consumer_icons` | `false` | Verbraucher-Icons ausblenden |
+| `force_watt_display`, `force_kw_display` | `false` | Eine Einheit erzwingen |
+| `show_flow_rates` | `true` | Globaler Standard für Flussraten (nur YAML) |
+| `compact_view`, `compact_details`, `compact_glow`, `compact_icons_in_bracket`, `compact_bar_selfuse` | `false` | Kompakte Ansicht |
+
+#### Vollständiges Beispiel
+
+```yaml
+type: custom:power-flux-card
+zoom: 0.9
+show_neon_glow: true
+show_donut_border: true
+entities:
+  solar: sensor.wechselrichter_1_leistung
+  solar_extra:
+    - sensor.wechselrichter_2_leistung
+  secondary_solar: sensor.solar_ertrag_heute
+  grid_combined: sensor.netz_leistung
+  secondary_grid: sensor.netzbezug_heute
+  battery: sensor.batterie_1_leistung
+  battery_soc: sensor.batterie_1_soc
+  batteries_extra:
+    - power: sensor.batterie_2_leistung
+      soc: sensor.batterie_2_soc
+  house: sensor.hausverbrauch
+  consumer_1: sensor.wallbox_leistung
+  consumer_2: sensor.waermepumpe_leistung
+  consumer_3: sensor.poolpumpe_leistung
+grid_threshold: 10
+battery_split_quarters: true
+consumer_1_label: Wallbox
+consumer_1_icon: mdi:car-electric
+consumer_2_standby: true
+consumer_2_standby_threshold: 20
+consumer_3_hide_pipe: true
+consumer_3_pipe_threshold: 100
+show_producer_always: true
+hide_inactive_flows: true
+```
+
+#### Fehlerbehebung
+
+- **Die Batterie-Röhre zeigt in die falsche Richtung** (z.B. eine Solar → Batterie-Röhre, während die Batterie entlädt, oder keine Batterie → Haus-Röhre): Deine Integration meldet das umgekehrte Vorzeichen. Schalte auf der *Batterie*-Seite **Wert umkehren** ein (`invert_battery`). Der Schalter auf der *Netz*-Seite gilt nur für den Netz-Sensor.
+- **Die Netz-Bubble flackert bei ausgeglichenem Netz zwischen Bezug und Einspeisung:** Setze einen kleinen **Netz-Schwellenwert (W)**, z.B. 10.
+- **Werte sind um den Faktor 1000 zu klein oder zu groß:** Der Sensor meldet kW. Aktiviere den kW-Schalter des Knotens (`solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw`).
+- **Ein Verbraucher verschwindet im Ruhezustand nicht:** Nutze **Standby-Werte ausblenden** für diesen Verbraucher und prüfe, dass **Verbraucher bei null Watt anzeigen** aus ist.
+- **Nach einem Update zeigt der Editor noch alte Texte oder Optionen:** Leere den Browser-Cache oder lade das Dashboard hart neu — Home Assistant cached die Karten-Datei.
+- **Der zweite Sensor verdeckt meine Beschriftung:** Ein konfigurierter zweiter Sensor hat Vorrang. Schalte für den Knoten **Label statt secondary entity anzeigen** ein.
+
+---
+
+### 🎨 Styling mit UIX
+
+Neben dem Editor kannst du die Karte mit CSS gestalten — auch mit **dynamischen Farben abhängig von Sensorwerten**. Das geht mit **[UIX (UI eXtension)](https://uix.lf.technology/)**, dem Nachfolger des nicht mehr weiterentwickelten card-mod. UIX unterstützt Jinja2-Templates in den Styles, sodass sich Farben, Größen und Röhren-Transparenzen abhängig von Zuständen ändern lassen.
 
 <details>
-   <summary> <b>Custom Farben mit card_mod und Jinja2 Templates</b></summary> 
+   <summary> <b>UIX installieren / von card-mod umsteigen</b></summary>
 
-Mit der [card_mod](https://github.com/thomasloven/lovelace-card-mod) Integration können die CSS-Variablen der Power Flux Card dynamisch per Jinja2-Templates überschrieben werden. So lassen sich Farben abhängig von Sensorwerten ändern — z.B. Solar-Icon grün bei Produktion, grau bei Stillstand.
+1. Installiere **UI eXtension** über HACS ([Repository](https://github.com/Lint-Free-Technology/uix)).
+2. UIX ist eine Integration: Füge sie nach dem Download unter **Einstellungen → Geräte & Dienste** hinzu und lade den Browser neu. Folge dem [Quick Start](https://uix.lf.technology/quick-start/) der UIX-Dokumentation.
+3. **Von card-mod gekommen?** Deinstalliere card-mod (und entferne ggf. den Eintrag `extra_module_url`, danach Home Assistant neu starten). Ersetze im YAML der Karte den Schlüssel `card_mod:` durch `uix:` — der Inhalt bleibt gleich:
+
+```yaml
+# vorher
+card_mod:
+  style: |
+    :host {
+      --neon-green: #00ff88;
+    }
+
+# nachher
+uix:
+  style: |
+    :host {
+      --neon-green: #00ff88;
+    }
+```
+
+Die Kompatibilität zu card-mod beschreibt UIX in den [FAQ](https://uix.lf.technology/faq/). Alle folgenden Beispiele verwenden den Schlüssel `uix:`.
+</details>
+
+<details>
+   <summary> <b>Custom Farben, Größen und Röhren-Transparenz mit UIX und Jinja2 Templates</b></summary>
+
+Mit UIX können die CSS-Variablen der Power Flux Card dynamisch per Jinja2-Templates überschrieben werden. Die Templates werden von Home Assistant ausgewertet und aktualisieren sich bei Zustandsänderungen. So lassen sich Farben abhängig von Sensorwerten ändern — z.B. Solar-Icon grün bei Produktion, grau bei Stillstand.
 
 ### Verfügbare CSS-Variablen
 
@@ -174,7 +512,7 @@ Mit der [card_mod](https://github.com/thomasloven/lovelace-card-mod) Integration
 
 ```yaml
 type: custom:power-flux-card
-card_mod:
+uix:
   style: |
     :host {
       --font-size-value: 19px;
@@ -192,7 +530,7 @@ entities:
   grid: sensor.grid_power
   battery: sensor.battery_power
   battery_soc: sensor.battery_soc
-card_mod:
+uix:
   style: |
     :host {
       {% if states('sensor.solar_power') | float > 0 %}
@@ -212,7 +550,7 @@ entities:
   grid_combined: sensor.grid_power_combined
   battery: sensor.battery_power
   battery_soc: sensor.battery_soc
-card_mod:
+uix:
   style: |
     :host {
       {% if states('sensor.grid_power_combined') | float < 0 %}
@@ -232,7 +570,7 @@ entities:
   grid: sensor.grid_power
   battery: sensor.battery_power
   battery_soc: sensor.battery_soc
-card_mod:
+uix:
   style: |
     :host {
       {% set soc = states('sensor.battery_soc') | float %}
@@ -256,7 +594,7 @@ entities:
   battery: sensor.battery_power
   battery_soc: sensor.battery_soc
   consumer_1: sensor.wallbox_power
-card_mod:
+uix:
   style: |
     :host {
       {% if states('sensor.wallbox_power') | float > 500 %}
@@ -279,7 +617,7 @@ entities:
   solar: sensor.solar_power
   grid: sensor.grid_power
   house: sensor.house_power
-card_mod:
+uix:
   style: |
     :host {
       --pipe-solar-opacity: {{ 1 if (states('sensor.solar_power') | float(0)) >= 30 else 0 }};
@@ -299,7 +637,7 @@ entities:
   grid: sensor.grid_power
   battery: sensor.battery_power
   house: sensor.house_power
-card_mod:
+uix:
   style: |
     :host {
       --pipe-solar-opacity:   {{ 1 if (states('sensor.solar_power')   | float(0))       >= 30 else 0.2 }};
@@ -325,7 +663,7 @@ entities:
   consumer_3: sensor.pool_power
   consumer_4: sensor.dishwasher_power
   consumer_5: sensor.dryer_power
-card_mod:
+uix:
   style: |
     :host {
       --pipe-consumer-1-opacity: {{ 1 if (states('sensor.wallbox_power')    | float(0)) >= 100 else 0 }};
@@ -338,5 +676,5 @@ card_mod:
 
 > **Hinweis:** Jede `--pipe-consumer-X-opacity` steuert gleichzeitig die Hintergrundpipe und die animierten Partikel. Auf `0` setzen blendet die Pipe vollständig aus, `1` zeigt sie vollständig an.
 
-> **Hinweis:** card_mod muss separat über HACS installiert werden. Die Templates werden bei jedem State-Update ausgewertet, die Farben ändern sich also in Echtzeit.
+> **Hinweis:** UIX muss separat über HACS installiert werden (siehe oben). Die Templates werden von Home Assistant ausgewertet, die Farben ändern sich also in Echtzeit, sobald sich die Zustände ändern.
 </details>

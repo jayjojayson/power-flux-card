@@ -3,7 +3,7 @@ import lang_en from "./lang-en.js";
 import lang_de from "./lang-de.js";
 
 console.log(
-  "%c⚡ Power Flux Card v_2.8 ready",
+  "%c⚡ Power Flux Card v_2.9 ready",
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
@@ -106,10 +106,40 @@ console.log(
     }
 
     setConfig(config) {
-      if (!config.entities) {
-        // Init allow
-      }
       this.config = config;
+    }
+
+    // All entity ids the card reads (everything below config.entities, including the
+    // solar_extra list and the batteries_extra objects). Cached per config object.
+    _getWatchedEntities() {
+      if (this._watchedFor !== this.config) {
+        const ids = new Set();
+        const collect = (v) => {
+          if (!v) return;
+          if (typeof v === 'string') ids.add(v);
+          else if (Array.isArray(v)) v.forEach(collect);
+          else if (typeof v === 'object') Object.values(v).forEach(collect);
+        };
+        collect(this.config && this.config.entities);
+        this._watched = [...ids];
+        this._watchedFor = this.config;
+      }
+      return this._watched;
+    }
+
+    // Home Assistant hands over a new hass object on every state change of any entity.
+    // Re-render immediately when one of the card's own entities, the config, the size, the
+    // language or the theme changed. Everything else is skipped, apart from a refresh every
+    // 2 seconds at most, which keeps colors set from outside (e.g. UIX templates) up to date.
+    shouldUpdate(changedProps) {
+      if (!changedProps.has('hass') || changedProps.size > 1) return true;
+      const oldHass = changedProps.get('hass');
+      if (!oldHass || !this.hass) return true;
+      if (oldHass.language !== this.hass.language || oldHass.themes !== this.hass.themes || oldHass.selectedTheme !== this.hass.selectedTheme) return true;
+      const oldStates = oldHass.states || {};
+      const newStates = this.hass.states || {};
+      if (this._getWatchedEntities().some(id => oldStates[id] !== newStates[id])) return true;
+      return (Date.now() - (this._lastUpdateTs || 0)) >= 2000;
     }
 
     firstUpdated() {
@@ -129,6 +159,7 @@ console.log(
 
     updated(changedProps) {
       super.updated(changedProps);
+      this._lastUpdateTs = Date.now();
       if (changedProps.has('hass') && this.hass) {
         const isDark = this.hass.themes?.darkMode !== false;
         if (isDark) {
@@ -211,6 +242,14 @@ console.log(
       }
     }
 
+    connectedCallback() {
+      super.connectedCallback();
+      // disconnectedCallback stops the observer; re-attach it when the card is moved or re-inserted
+      if (this._resizeObserver) {
+        this._resizeObserver.observe(this);
+      }
+    }
+
     disconnectedCallback() {
       super.disconnectedCallback();
       if (this._resizeObserver) {
@@ -227,7 +266,6 @@ console.log(
         --neon-green: #00ff88;
         --neon-pink: #ff0080;
         --neon-red: #ff3333;
-        --export-purple: #a855f7;
         --export-color: #ff3333;
         --consumer-1-color: #a855f7;
         --consumer-2-color: #f97316;
@@ -281,7 +319,6 @@ console.log(
         --neon-green: #059669;
         --neon-pink: #db2777;
         --neon-red: #dc2626;
-        --export-purple: #7c3aed;
         --export-color: #dc2626;
         --consumer-1-color: #7c3aed;
         --consumer-2-color: #ea580c;
@@ -563,6 +600,19 @@ console.log(
       .bubble.box .sub.secondary-val { font-size: var(--font-size-secondary, 12px); }
       .bubble.box .sub.secondary-val.dual { font-size: var(--font-size-secondary-dual, 9px); }
 
+      /* --- MULTI-BATTERY RING (bubble split into one SoC arc per battery) --- */
+      .batt-ring-svg { position: absolute; top: -2px; left: -2px; width: calc(100% + 4px); height: calc(100% + 4px); z-index: 2; pointer-events: none; overflow: visible; }
+      .batt-ring-track { fill: none; stroke: var(--icon-battery-color); opacity: 0.20; stroke-width: 2.5; stroke-linecap: round; }
+      .batt-ring-fill { fill: none; stroke: var(--icon-battery-color); stroke-width: 2.5; stroke-linecap: round; transition: d 0.4s ease; }
+      /* Ring mode keeps the normal bubble content (icon / name / value); the ring replaces the border */
+      .bubble.battery.ring { border-color: transparent; }
+      /* --- MULTI-BATTERY QUARTERS (cross-split, one cell per battery + center hub) --- */
+      .batt-quarters-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+      .bq-divider { stroke: var(--neon-green); opacity: 0.22; stroke-width: 1; stroke-linecap: round; }
+      .bq-soc { fill: var(--icon-battery-color); font-size: 15px; font-weight: bold; }
+      .bq-hub-bg { fill: var(--ha-card-background, var(--card-background-color, #1c1c1c)); stroke: var(--neon-green); stroke-width: 1; opacity: 0.96; }
+      .bq-hub-soc { fill: var(--text-battery-color, var(--neon-green)); font-size: 17px; font-weight: bold; }
+
       svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
       
       .bg-path { fill: none; stroke-width: 6; transition: opacity 0.3s ease; }
@@ -693,6 +743,14 @@ console.log(
       return null;
     }
 
+    // Grid readings below grid_threshold watts count as 0 W. A grid held at balance hovers a few
+    // watts on either side of zero, which would otherwise flip import and export on every update.
+    _applyGridThreshold(gridImport, gridExport) {
+      const threshold = Math.max(0, parseFloat(this.config.grid_threshold) || 0);
+      if (threshold === 0) return [gridImport, gridExport];
+      return [gridImport < threshold ? 0 : gridImport, gridExport < threshold ? 0 : gridExport];
+    }
+
     _formatPower(val) {
       if (val === 0) return "0";
       if (this.config.force_watt_display === true) {
@@ -730,6 +788,206 @@ console.log(
         if (Math.abs(val) < threshold) val = 0;
       }
       return val;
+    }
+
+    // Normalized list of all configured batteries. The primary battery keeps the legacy
+    // entities.battery / battery_charge / battery_discharge / battery_soc keys (fully backward
+    // compatible); additional batteries live in entities.batteries_extra (max 3 extra = 4 total).
+    _getBatteryList(entities) {
+      const list = [];
+      list.push({
+        power: entities.battery || "",
+        charge: entities.battery_charge || "",
+        discharge: entities.battery_discharge || "",
+        soc: entities.battery_soc || "",
+        unit_kw: this.config.battery_unit_kw === true,
+        invert: this.config.invert_battery === true,
+        label: this.config.battery_label || "",
+      });
+      if (Array.isArray(entities.batteries_extra)) {
+        entities.batteries_extra.forEach(b => {
+          if (!b) return;
+          list.push({
+            power: b.power || "",
+            charge: b.charge || "",
+            discharge: b.discharge || "",
+            soc: b.soc || "",
+            unit_kw: b.unit_kw === true,
+            invert: b.invert === true,
+            label: b.label || "",
+          });
+        });
+      }
+      // Keep only batteries that actually have at least one sensor configured
+      return list.filter(b => b.power || b.charge || b.discharge || b.soc);
+    }
+
+    // Aggregates every configured battery into combined charge/discharge/SoC values.
+    // Per the multi-battery design the pipe numbers always show the sum of all batteries.
+    _getBatteryAggregate(entities) {
+      const getVal = (e) => {
+        const st = e ? this.hass.states[e] : null;
+        return st ? parseFloat(st.state) || 0 : 0;
+      };
+      const list = this._getBatteryList(entities);
+      let totalCharge = 0, totalDischarge = 0, socSum = 0, socCount = 0;
+      const perBattery = [];
+      list.forEach(b => {
+        const factor = b.unit_kw ? 1000 : 1;
+        let signed = b.power ? getVal(b.power) * factor : 0;
+        if (b.invert) signed *= -1;
+        const hasCharge = !!b.charge;
+        const hasDischarge = !!b.discharge;
+        // Separate charge/discharge sensors are taken as-is in W (matches the legacy behaviour)
+        const charge = hasCharge ? Math.abs(getVal(b.charge)) : (signed > 0 ? signed : 0);
+        const discharge = hasDischarge ? Math.abs(getVal(b.discharge)) : (signed < 0 ? Math.abs(signed) : 0);
+        totalCharge += charge;
+        totalDischarge += discharge;
+        let soc = null;
+        if (b.soc) {
+          soc = Math.min(100, Math.max(0, getVal(b.soc)));
+          socSum += soc;
+          socCount++;
+        }
+        perBattery.push({
+          charge,
+          discharge,
+          soc,
+          hasSoc: !!b.soc,
+          label: b.label || "",
+          powerEntity: b.power || b.charge || b.discharge || b.soc || "",
+        });
+      });
+      return {
+        count: list.length,
+        totalCharge,
+        totalDischarge,
+        avgSoc: socCount > 0 ? socSum / socCount : 0,
+        socCount,
+        net: totalCharge - totalDischarge,
+        perBattery,
+      };
+    }
+
+    // Ring gauge: one SoC arc per battery (max 4). Follows the node shape — a circle by default,
+    // or the rounded-box outline in box mode (segments drawn via stroke-dasharray on a normalized
+    // pathLength). All SVG children are inline (interpolated <path> sub-templates would land in the
+    // HTML namespace and not render).
+    _renderBatteryRing(agg, showNeonGlow, useBoxes) {
+      const cx = 50, cy = 50, r = 48.9;
+      const n = Math.max(1, Math.min(4, agg.count));
+      const P = 360;                       // normalized perimeter length (also the circle's degrees)
+      const gap = n > 1 ? 12 : 0;
+      const segSpan = P / n;
+      const polar = (ang) => {
+        const a = (ang - 90) * Math.PI / 180;
+        return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+      };
+      const arcPath = (startAng, endAng) => {
+        if (endAng - startAng <= 0.1) return "";
+        const [sx, sy] = polar(startAng);
+        const [ex, ey] = polar(endAng);
+        const large = (endAng - startAng) > 180 ? 1 : 0;
+        return `M ${sx.toFixed(2)} ${sy.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`;
+      };
+      // Rounded-rect outline hugging just inside the box border, starting at top-centre, clockwise.
+      const boxPath = "M 50 1.1 H 82.2 A 16.7 16.7 0 0 1 98.9 17.8 V 82.2 A 16.7 16.7 0 0 1 82.2 98.9 H 17.8 A 16.7 16.7 0 0 1 1.1 82.2 V 17.8 A 16.7 16.7 0 0 1 17.8 1.1 H 50";
+      const glow = showNeonGlow ? "filter: drop-shadow(0 0 3px var(--icon-battery-color));" : "";
+      const disp = (show) => "display:" + (show ? "inline" : "none");
+      const seg = [];
+      for (let i = 0; i < 4; i++) {
+        if (i < n) {
+          const start = i * segSpan + gap / 2;
+          const end = (i + 1) * segSpan - gap / 2;
+          const span = end - start;
+          const b = agg.perBattery[i];
+          const hasSoc = !!(b && b.hasSoc);
+          const soc = (hasSoc && b.soc !== null) ? Math.min(100, Math.max(0, b.soc)) : 0;
+          const low = hasSoc && soc <= 20;
+          const fillLen = hasSoc ? span * (soc / 100) : 0;
+          const colStyle = low ? "stroke: var(--neon-red);" : "";
+          if (useBoxes) {
+            seg.push({
+              trackD: boxPath,
+              fillD: boxPath,
+              trackStyle: `stroke-dasharray: 0 ${start.toFixed(2)} ${span.toFixed(2)} ${P}; ${disp(true)}`,
+              fillStyle: `stroke-dasharray: 0 ${start.toFixed(2)} ${Math.max(0, fillLen).toFixed(2)} ${P}; ${colStyle}${glow} ${disp(hasSoc && fillLen > 0.05)}`,
+            });
+          } else {
+            seg.push({
+              trackD: arcPath(start, end),
+              fillD: hasSoc ? arcPath(start, start + fillLen) : "",
+              trackStyle: disp(true),
+              fillStyle: `${colStyle}${glow} ${disp(hasSoc)}`,
+            });
+          }
+        } else {
+          seg.push({ trackD: useBoxes ? boxPath : "", fillD: useBoxes ? boxPath : "", trackStyle: disp(false), fillStyle: disp(false) });
+        }
+      }
+      return html`
+        <svg class="batt-ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <path class="batt-ring-track" d="${seg[0].trackD}" pathLength="360" style="${seg[0].trackStyle}"></path>
+          <path class="batt-ring-track" d="${seg[1].trackD}" pathLength="360" style="${seg[1].trackStyle}"></path>
+          <path class="batt-ring-track" d="${seg[2].trackD}" pathLength="360" style="${seg[2].trackStyle}"></path>
+          <path class="batt-ring-track" d="${seg[3].trackD}" pathLength="360" style="${seg[3].trackStyle}"></path>
+          <path class="batt-ring-fill" d="${seg[0].fillD}" pathLength="360" style="${seg[0].fillStyle}"></path>
+          <path class="batt-ring-fill" d="${seg[1].fillD}" pathLength="360" style="${seg[1].fillStyle}"></path>
+          <path class="batt-ring-fill" d="${seg[2].fillD}" pathLength="360" style="${seg[2].fillStyle}"></path>
+          <path class="batt-ring-fill" d="${seg[3].fillD}" pathLength="360" style="${seg[3].fillStyle}"></path>
+        </svg>`;
+    }
+
+    // Quarter "pie": the circle is split into sectors that always fill it completely — 2 batteries =
+    // two halves, 3 = two top quarters + bottom half, 4 = four quarters. Each sector shows only that
+    // battery's SoC% (coloured by its charge level, red when low); the center hub shows the combined
+    // average SoC, larger. All SVG children are inline (see the namespace note on the ring above).
+    _renderBatteryQuarters(agg) {
+      const R = 46;
+      const n = Math.min(4, Math.max(1, agg.count));
+      let layout;
+      if (n <= 1)       layout = { sectors: [{ x: 50, y: 30 }], bounds: [] };
+      else if (n === 2) layout = { sectors: [{ x: 50, y: 21 }, { x: 50, y: 90 }], bounds: [90, 270] };
+      else if (n === 3) layout = { sectors: [{ x: 25, y: 25 }, { x: 75, y: 25 }, { x: 50, y: 90 }], bounds: [0, 90, 270] };
+      else              layout = { sectors: [{ x: 25, y: 25 }, { x: 75, y: 25 }, { x: 25, y: 85 }, { x: 75, y: 85 }], bounds: [0, 90, 180, 270] };
+      const rimLine = (angFromTop) => {
+        const rad = (angFromTop - 90) * Math.PI / 180;
+        return [50 + R * Math.cos(rad), 50 + R * Math.sin(rad)];
+      };
+      const disp = (show) => "display:" + (show ? "inline" : "none");
+      const div = [];
+      for (let i = 0; i < 4; i++) {
+        if (i < layout.bounds.length) { const p = rimLine(layout.bounds[i]); div.push({ x: p[0].toFixed(2), y: p[1].toFixed(2), show: true }); }
+        else div.push({ x: "50", y: "50", show: false });
+      }
+      const cell = [];
+      for (let i = 0; i < 4; i++) {
+        if (i < n) {
+          const sct = layout.sectors[i];
+          const b = agg.perBattery[i];
+          const hasSoc = !!(b && b.hasSoc);
+          const soc = (hasSoc && b.soc !== null) ? Math.min(100, Math.max(0, b.soc)) : 0;
+          const low = hasSoc && soc <= 20;
+          cell.push({ show: true, x: String(sct.x), y: String(sct.y), col: low ? "var(--neon-red)" : "var(--icon-battery-color)", text: hasSoc ? (Math.round(soc) + "%") : "—" });
+        } else {
+          cell.push({ show: false, x: "0", y: "0", col: "none", text: "" });
+        }
+      }
+      const c0 = cell[0], c1 = cell[1], c2 = cell[2], c3 = cell[3];
+      const avg = Math.round(agg.avgSoc);
+      return html`
+        <svg class="batt-quarters-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <line class="bq-divider" x1="50" y1="50" x2="${div[0].x}" y2="${div[0].y}" style="${disp(div[0].show)}"></line>
+          <line class="bq-divider" x1="50" y1="50" x2="${div[1].x}" y2="${div[1].y}" style="${disp(div[1].show)}"></line>
+          <line class="bq-divider" x1="50" y1="50" x2="${div[2].x}" y2="${div[2].y}" style="${disp(div[2].show)}"></line>
+          <line class="bq-divider" x1="50" y1="50" x2="${div[3].x}" y2="${div[3].y}" style="${disp(div[3].show)}"></line>
+          <text class="bq-soc" x="${c0.x}" y="${c0.y}" text-anchor="middle" style="${disp(c0.show)}; fill:${c0.col}">${c0.text}</text>
+          <text class="bq-soc" x="${c1.x}" y="${c1.y}" text-anchor="middle" style="${disp(c1.show)}; fill:${c1.col}">${c1.text}</text>
+          <text class="bq-soc" x="${c2.x}" y="${c2.y}" text-anchor="middle" style="${disp(c2.show)}; fill:${c2.col}">${c2.text}</text>
+          <text class="bq-soc" x="${c3.x}" y="${c3.y}" text-anchor="middle" style="${disp(c3.show)}; fill:${c3.col}">${c3.text}</text>
+          <circle class="bq-hub-bg" cx="50" cy="50" r="20"></circle>
+          <text class="bq-hub-soc" x="50" y="55" text-anchor="middle">${avg}%</text>
+        </svg>`;
     }
 
     // --- DOM NODE SVG GENERATOR ---
@@ -808,10 +1066,7 @@ console.log(
       const gridCombinedVal = hasGridCombined ? getValUnit(entities.grid_combined, this.config.grid_unit_kw === true) * gridSign : 0;
       const gridMain = hasGridCombined ? gridCombinedVal : (entities.grid ? getValUnit(entities.grid, this.config.grid_unit_kw === true) * gridSign : 0);
       const gridExportSensor = entities.grid_export ? getValUnit(entities.grid_export, this.config.grid_unit_kw === true) : 0;
-      let battery = entities.battery ? getValUnit(entities.battery, this.config.battery_unit_kw === true) : 0;
-      if (this.config.invert_battery) {
-        battery *= -1;
-      }
+      const battAgg = this._getBatteryAggregate(entities);
 
       // Additional consumers 1-5: configured icon/label/color, optional invert, magnitude used for the split
       const consumerDefaults = {
@@ -851,13 +1106,11 @@ console.log(
         gridImport = gridMain > 0 ? gridMain : 0;
         gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
       }
+      [gridImport, gridExport] = this._applyGridThreshold(gridImport, gridExport);
 
-      // Check for separate battery charge/discharge sensors
-      const hasBattChargeSensor = !!(entities.battery_charge && entities.battery_charge !== "");
-      const hasBattDischargeSensor = !!(entities.battery_discharge && entities.battery_discharge !== "");
-
-      const batteryCharge = hasBattChargeSensor ? Math.abs(getVal(entities.battery_charge)) : (battery > 0 ? battery : 0);
-      const batteryDischarge = hasBattDischargeSensor ? Math.abs(getVal(entities.battery_discharge)) : (battery < 0 ? Math.abs(battery) : 0);
+      // Aggregate charge/discharge across all configured batteries (single battery = unchanged)
+      const batteryCharge = battAgg.totalCharge;
+      const batteryDischarge = battAgg.totalDischarge;
       const batteryChargeViaHouse = this.config.battery_charge_via_house === true;
 
       let solarToBatt = 0;
@@ -1018,9 +1271,9 @@ console.log(
 
       // color = icon, pipe = bracket line (identical unless a separate pipe color is configured)
       const bracketMeta = (type) => {
-        if (type === 'solar') return { icon: 'mdi:weather-sunny', color: colSolar.icon, pipe: colSolar.pipe };
-        if (type === 'grid') return { icon: 'mdi:transmission-tower', color: colGrid.icon, pipe: colGrid.pipe };
-        if (type === 'battery') return { icon: 'mdi:battery-high', color: battDischarge.icon, pipe: battDischarge.pipe };
+        if (type === 'solar') return { icon: this.config.solar_icon || 'mdi:weather-sunny', color: colSolar.icon, pipe: colSolar.pipe };
+        if (type === 'grid') return { icon: this.config.grid_icon || 'mdi:transmission-tower', color: colGrid.icon, pipe: colGrid.pipe };
+        if (type === 'battery') return { icon: this.config.battery_icon || 'mdi:battery-high', color: battDischarge.icon, pipe: battDischarge.pipe };
         if (type === 'export') return { icon: this.config.export_icon || 'mdi:arrow-right-box', color: colExport.icon, pipe: colExport.pipe };
         return { icon: '', color: '', pipe: '' };
       };
@@ -1069,9 +1322,9 @@ console.log(
         let iconColor = '';
         let pipeColor = '';
 
-        if (type === 'house') { icon = 'mdi:home'; iconColor = colHouse.icon; pipeColor = colHouse.pipe; }
+        if (type === 'house') { icon = this.config.house_icon || 'mdi:home'; iconColor = colHouse.icon; pipeColor = colHouse.pipe; }
         if (type === 'export') { icon = this.config.export_icon || 'mdi:arrow-right-box'; iconColor = colExport.icon; pipeColor = colExport.pipe; }
-        if (type === 'battery') { icon = 'mdi:battery-charging-high'; iconColor = battCharge.icon; pipeColor = battCharge.pipe; }
+        if (type === 'battery') { icon = this.config.battery_icon || 'mdi:battery-charging-high'; iconColor = battCharge.icon; pipeColor = battCharge.pipe; }
         if (iconOverride) { icon = iconOverride; }
         if (iconColorOverride) { iconColor = iconColorOverride; pipeColor = pipeColorOverride || iconColorOverride; }
 
@@ -1140,7 +1393,7 @@ console.log(
                         const textColor = s.type === 'solar' && this.config.color_text_solar ? colSolar.text
                           : s.type === 'grid' && this.config.color_text_grid ? colGrid.text
                           : s.type === 'battery' && this.config.color_text_battery_discharge ? battDischarge.text
-                          : s.type === 'export' && this.config.color_export ? colExport.text
+                          : s.type === 'export' && this.config.color_text_export ? colExport.text
                           : 'black';
                         return html`
                         <div class="bar-segment"
@@ -1174,19 +1427,19 @@ console.log(
                         <div class="compact-details-header">${this._localize('card.label_in')}</div>
                         ${solar > 0 ? html`
                         <div class="compact-detail-item" @click=${() => this._getPrimarySolarEntity(entities) && this._handleClick(this._getPrimarySolarEntity(entities))} style="cursor: ${this._getPrimarySolarEntity(entities) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:weather-sunny" style="color: ${colSolar.icon};"></ha-icon>
+                            <ha-icon icon="${this.config.solar_icon || 'mdi:weather-sunny'}" style="color: ${colSolar.icon};"></ha-icon>
                             <span class="compact-detail-label" style="color: ${colSolar.secondary};">${labelSolar}</span>
                             <span class="compact-detail-value" style="color: ${colSolar.text};">${this._formatPower(solar)}</span>
                         </div>` : ''}
                         ${gridImport > 0 ? html`
                         <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid) && this._handleClick(entities.grid_combined || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:transmission-tower" style="color: ${colGrid.icon};"></ha-icon>
+                            <ha-icon icon="${this.config.grid_icon || 'mdi:transmission-tower'}" style="color: ${colGrid.icon};"></ha-icon>
                             <span class="compact-detail-label" style="color: ${colGrid.secondary};">${labelGrid}</span>
                             <span class="compact-detail-value" style="color: ${colGrid.text};">${this._formatPower(gridImport)}</span>
                         </div>` : ''}
                         ${batteryDischarge > 0 ? html`
                         <div class="compact-detail-item" @click=${() => entities.battery && this._handleClick(entities.battery)} style="cursor: ${entities.battery ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:battery-arrow-down" style="color: ${battDischarge.icon};"></ha-icon>
+                            <ha-icon icon="${this.config.battery_icon || 'mdi:battery-arrow-down'}" style="color: ${battDischarge.icon};"></ha-icon>
                             <span class="compact-detail-label" style="color: ${battDischarge.secondary};">${labelBattery}</span>
                             <span class="compact-detail-value" style="color: ${battDischarge.text};">${this._formatPower(batteryDischarge)}</span>
                         </div>` : ''}
@@ -1196,13 +1449,13 @@ console.log(
                         <div class="compact-details-header">${this._localize('card.label_out')}</div>
                         ${destHouse > 0 ? html`
                         <div class="compact-detail-item" @click=${() => entities.house && this._handleClick(entities.house)} style="cursor: ${entities.house ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:home" style="color: ${colHouse.icon};"></ha-icon>
+                            <ha-icon icon="${this.config.house_icon || 'mdi:home'}" style="color: ${colHouse.icon};"></ha-icon>
                             <span class="compact-detail-label" style="color: ${colHouse.secondary};">${labelHouse}</span>
                             <span class="compact-detail-value" style="color: ${colHouse.text};">${this._formatPower(destHouse)}</span>
                         </div>` : ''}
                         ${batteryCharge > 0 ? html`
                         <div class="compact-detail-item" @click=${() => entities.battery && this._handleClick(entities.battery)} style="cursor: ${entities.battery ? 'pointer' : 'default'};">
-                            <ha-icon icon="mdi:battery-arrow-up" style="color: ${battCharge.icon};"></ha-icon>
+                            <ha-icon icon="${this.config.battery_icon || 'mdi:battery-arrow-up'}" style="color: ${battCharge.icon};"></ha-icon>
                             <span class="compact-detail-label" style="color: ${battCharge.secondary};">${labelBattery}</span>
                             <span class="compact-detail-value" style="color: ${battCharge.text};">${this._formatPower(batteryCharge)}</span>
                         </div>` : ''}
@@ -1234,6 +1487,13 @@ console.log(
       const useBoxes = this.config.use_boxes === true;
       const shapeClass = useBoxes ? 'box' : '';
 
+      // Multi-battery aggregation (primary + entities.batteries_extra); single battery stays unchanged.
+      const battAgg = this._getBatteryAggregate(entities);
+      const isMultiBattery = battAgg.count >= 2;
+      const showBatteryRing = isMultiBattery && this.config.battery_split_ring === true;
+      const showBatteryQuarters = isMultiBattery && this.config.battery_split_quarters === true;
+      const batteryClickEntity = entities.battery || (battAgg.perBattery[0] && battAgg.perBattery[0].powerEntity) || "";
+
       const globalFlowRate = this.config.show_flow_rates !== false;
 
       // FLOW RATE TOGGLES
@@ -1246,6 +1506,11 @@ console.log(
       const showLabelGrid = this.config.show_label_grid === true || !!this.config.grid_label;
       const showLabelBattery = this.config.show_label_battery === true || !!this.config.battery_label;
       const showLabelHouse = this.config.show_label_house === true || !!this.config.house_label;
+      // Explicit label toggle (not just "a label is set"): when on, the label replaces the secondary sensor.
+      const preferLabelSolar = this.config.show_label_solar === true;
+      const preferLabelGrid = this.config.show_label_grid === true;
+      const preferLabelBattery = this.config.show_label_battery === true;
+      const preferLabelHouse = this.config.show_label_house === true;
 
       const useColoredValues = this.config.use_colored_values === true;
       const showDonut = this.config.show_donut_border === true;
@@ -1258,7 +1523,7 @@ console.log(
       // CUSTOM LABELS
       const labelSolarText = this.config.solar_label || this._localize('card.label_solar');
       const labelGridText = this.config.grid_label || this._localize('card.label_grid');
-      const labelBatteryText = this.config.battery_label || (entities.battery && this.hass.states[entities.battery] && this.hass.states[entities.battery].state > 0 ? '+' : '-') + " " + this._localize('card.label_battery');
+      const labelBatteryText = this.config.battery_label || ((battAgg.net >= 0 ? '+' : '-') + " " + this._localize('card.label_battery'));
       const labelHouseText = this.config.house_label || this._localize('card.label_house');
       // Secondary Sensor für Haus
       const hasSecondaryHouse = !!(entities.secondary_house && entities.secondary_house !== "");
@@ -1269,8 +1534,12 @@ console.log(
         const val = parseFloat(state.state);
         if (isNaN(val)) return state.state + (state.attributes.unit_of_measurement ? ' ' + state.attributes.unit_of_measurement : '');
         const unit = state.attributes.unit_of_measurement || '';
-        if (unit === 'W' || unit === 'Wh') {
+        if (unit === 'W') {
           return this._formatPower(val);
+        }
+        if (unit === 'Wh') {
+          // Energy keeps its own unit instead of being shown as power (W / kW)
+          return Math.abs(val) >= 1000 ? (val / 1000).toFixed(1) + ' kWh' : Math.round(val) + ' Wh';
         }
         if (unit === 'kWh' || unit === 'kW') {
           return val.toFixed(1) + ' ' + unit;
@@ -1313,7 +1582,7 @@ console.log(
       const hasSolar = !!(entities.solar && entities.solar !== "") || (Array.isArray(entities.solar_extra) && entities.solar_extra.some(id => !!id));
       const hasGridCombined = !!(entities.grid_combined && entities.grid_combined !== "");
       const hasGrid = !!(entities.grid && entities.grid !== "") || hasGridCombined;
-      const hasBattery = !!(entities.battery && entities.battery !== "");
+      const hasBattery = battAgg.count > 0;
 
       const styleSolar = hasSolar ? '' : 'display: none;';
       const styleGrid = hasGrid ? '' : 'display: none;';
@@ -1370,11 +1639,8 @@ console.log(
       const gridCombinedVal = hasGridCombined ? getValKw(entities.grid_combined, this.config.grid_unit_kw === true) * gridSign : 0;
       const gridMain = hasGridCombined ? gridCombinedVal : (hasGrid ? getValKw(entities.grid, this.config.grid_unit_kw === true) * gridSign : 0);
       const gridExpSensor = (hasGrid && entities.grid_export) ? getValKw(entities.grid_export, this.config.grid_unit_kw === true) : 0;
-      let battery = hasBattery ? getValKw(entities.battery, this.config.battery_unit_kw === true) : 0;
-      if (this.config.invert_battery) {
-        battery *= -1;
-      }
-      const battSoc = (hasBattery && entities.battery_soc) ? getVal(entities.battery_soc) : 0;
+      let battery = battAgg.net;
+      const battSoc = battAgg.avgSoc;
 
       const solarVal = Math.max(0, solar);
 
@@ -1393,14 +1659,12 @@ console.log(
           gridImport = gridMain > 0 ? gridMain : 0;
           gridExport = gridMain < 0 ? Math.abs(gridMain) : 0;
         }
+        [gridImport, gridExport] = this._applyGridThreshold(gridImport, gridExport);
       }
 
-      // Check for separate battery charge/discharge sensors
-      const hasBattChargeSensor = !!(entities.battery_charge && entities.battery_charge !== "");
-      const hasBattDischargeSensor = !!(entities.battery_discharge && entities.battery_discharge !== "");
-
-      const batteryCharge = hasBattChargeSensor ? Math.abs(getVal(entities.battery_charge)) : (battery > 0 ? battery : 0);
-      const batteryDischarge = hasBattDischargeSensor ? Math.abs(getVal(entities.battery_discharge)) : (battery < 0 ? Math.abs(battery) : 0);
+      // Aggregate charge/discharge across all configured batteries (single battery = unchanged)
+      const batteryCharge = battAgg.totalCharge;
+      const batteryDischarge = battAgg.totalDischarge;
 
       let solarToBatt = 0;
       let gridToBatt = 0;
@@ -1539,7 +1803,7 @@ console.log(
       const isGridExporting = Math.round(gridExport) > 0 && Math.round(gridImport) === 0;
       // Battery visibility follows the SOC (shown in the box) rather than watts, since
       // charge/discharge power can swing positive/negative around zero while idle.
-      const hasBatterySoc = !!(entities.battery_soc && entities.battery_soc !== "");
+      const hasBatterySoc = battAgg.socCount > 0;
       const batteryHideSocThreshold = this.config.battery_hide_soc_threshold || 0;
       const isBatteryActive = hasBatterySoc
         ? Math.round(battSoc) > batteryHideSocThreshold
@@ -1642,15 +1906,11 @@ console.log(
         return useColoredValues ? `color: ${hex};` : '';
       }
 
-      const renderLabel = (text, isVisible) => {
-        if (!isVisible) return html``;
-        return html`<div class="sub">${text}</div>`;
-      };
-
       // Second and optional third sensor share one line, separated by " / ", and use the secondary color
-      const renderSecondaryOrLabel = (labelText, showLabel, secondaryEntity, hasSecondary, entityKey = null, tertiaryEntity = null) => {
+      const renderSecondaryOrLabel = (labelText, showLabel, secondaryEntity, hasSecondary, entityKey = null, tertiaryEntity = null, preferLabel = false) => {
         const hasTertiary = !!(tertiaryEntity && tertiaryEntity !== "");
-        if (hasSecondary || hasTertiary) {
+        // When the label toggle is explicitly on, the custom label replaces the secondary/tertiary value.
+        if (!preferLabel && (hasSecondary || hasTertiary)) {
           const parts = [];
           if (hasSecondary) parts.push(getSecondaryVal(secondaryEntity));
           if (hasTertiary) parts.push(getSecondaryVal(tertiaryEntity));
@@ -1691,8 +1951,8 @@ console.log(
 
         if (hideConsumerIcons) {
           iconContent = html``;
-        } else if (customIcon) {
-          iconContent = html`<ha-icon icon="${customIcon}" class="icon-custom" style="color: ${iconColorVar};"></ha-icon>`;
+        } else if (customIcon || (iconType && iconType.startsWith('mdi:'))) {
+          iconContent = html`<ha-icon icon="${customIcon || iconType}" class="icon-custom" style="color: ${iconColorVar};"></ha-icon>`;
         } else {
           iconContent = this._renderIcon(iconType, val);
         }
@@ -1848,7 +2108,7 @@ console.log(
                 <div class="bubble ${shapeClass} ${isSolarActive ? 'solar' : 'inactive'} ${nodeClass('solar')} ${tintClass} ${isSolarActive ? glowClass : ''}"
                     @click=${() => this._handleClick(this._getPrimarySolarEntity(entities))}>
                     ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
-                    ${renderSecondaryOrLabel(labelSolarText, showLabelSolar, entities.secondary_solar, hasSecondarySolar, 'secondary_solar')}
+                    ${renderSecondaryOrLabel(labelSolarText, showLabelSolar, entities.secondary_solar, hasSecondarySolar, 'secondary_solar', null, preferLabelSolar)}
                     <div class="value" style="${isSolarActive ? (this.config.color_text_solar ? 'color: var(--text-solar-color);' : getColorStyle('--neon-yellow')) : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
                 </div>` : ''}
                 
@@ -1857,7 +2117,7 @@ console.log(
                     style="${showDonut && isGridActive ? `--grid-gradient: ${gridGradientVal};` : ''}"
                     @click=${() => this._handleClick(entities.grid_combined || entities.grid)}>
                     ${renderMainIcon('grid', isGridExporting ? gridExport : gridImport, iconGrid, gridIconColor)}
-                    ${renderSecondaryOrLabel(labelGridText, showLabelGrid, entities.secondary_grid, hasSecondaryGrid, 'secondary_grid')}
+                    ${renderSecondaryOrLabel(labelGridText, showLabelGrid, entities.secondary_grid, hasSecondaryGrid, 'secondary_grid', null, preferLabelGrid)}
                     <div class="value" style="color: ${gridTextColor};">
                         ${isGridExporting ? html`<span class="direction-arrow">&#9650;</span>` : (isGridActive ? html`<span class="direction-arrow">&#9660;</span>` : '')}
                         ${this._formatPower(isGridExporting ? gridExport : gridImport)}
@@ -1865,18 +2125,21 @@ console.log(
                 </div>` : ''}
                 
                 ${showBatteryBubble ? html`
-                <div class="bubble ${shapeClass} battery ${nodeClass('battery')} ${tintClass} ${glowClass}"
-                    @click=${() => this._handleClick(entities.battery)}>
+                <div class="bubble ${shapeClass} battery ${showBatteryRing ? 'ring' : ''} ${showBatteryQuarters ? 'quarters' : ''} ${nodeClass('battery')} ${tintClass} ${glowClass}"
+                    @click=${() => this._handleClick(batteryClickEntity)}>
+                    ${showBatteryQuarters ? this._renderBatteryQuarters(battAgg) : html`
+                    ${showBatteryRing ? this._renderBatteryRing(battAgg, showNeonGlow, useBoxes) : ''}
                     ${renderMainIcon('battery', battSoc, iconBattery)}
-                    ${renderSecondaryOrLabel(labelBatteryText, showLabelBattery, entities.secondary_battery, hasSecondaryBattery, 'secondary_battery')}
+                    ${renderSecondaryOrLabel(labelBatteryText, showLabelBattery, entities.secondary_battery, hasSecondaryBattery, 'secondary_battery', null, preferLabelBattery)}
                     <div class="value" style="${this.config.color_text_battery ? 'color: var(--text-battery-color);' : getColorStyle('--neon-green')}">${this.config.battery_show_power ? this._formatPower(battery) : Math.round(battSoc) + '%'}</div>
+                    `}
                 </div>` : ''}
                 
                 <div class="bubble ${shapeClass} house ${nodeClass('house')} ${showDonut ? 'donut' : ''} ${tintClass}"
                     style="${houseBubbleStyle}"
                     @click=${() => this._handleClick(entities.house)}>
                     ${renderMainIcon('house', 0, this.config.house_icon || null, this.config.color_icon_house ? 'var(--icon-house-color)' : houseDominantColor)}
-                    ${renderSecondaryOrLabel(labelHouseText, showLabelHouse, entities.secondary_house, hasSecondaryHouse, 'secondary_house', entities.tertiary_house)}
+                    ${renderSecondaryOrLabel(labelHouseText, showLabelHouse, entities.secondary_house, hasSecondaryHouse, 'secondary_house', entities.tertiary_house, preferLabelHouse)}
                     <div class="value" style="${houseTextStyle}">${this._formatPower(houseDisplay)}</div>
                 </div>
 
@@ -1884,8 +2147,8 @@ console.log(
                 ${renderConsumer(showC2, 'c2', nodeClass('c2'), 'consumer_2', labelC2, 'heater', c2Val, this._getConsumerColor(2))}
                 ${renderConsumer(showC3, 'c3', nodeClass('c3'), 'consumer_3', labelC3, 'pool', c3Val, this._getConsumerColor(3))}
 
-                ${renderConsumer(showC4, 'c4', nodeClass('c4'), 'consumer_4', this.config.consumer_4_label || 'Consumer 4', null, c4Val, this._getConsumerColor(4))}
-                ${renderConsumer(showC5, 'c5', nodeClass('c5'), 'consumer_5', this.config.consumer_5_label || 'Consumer 5', null, c5Val, this._getConsumerColor(5))}
+                ${renderConsumer(showC4, 'c4', nodeClass('c4'), 'consumer_4', this.config.consumer_4_label || this._localize('card.label_consumer_4'), 'mdi:flash', c4Val, this._getConsumerColor(4))}
+                ${renderConsumer(showC5, 'c5', nodeClass('c5'), 'consumer_5', this.config.consumer_5_label || this._localize('card.label_consumer_5'), 'mdi:lightbulb', c5Val, this._getConsumerColor(5))}
                 
             </div>
         </div>

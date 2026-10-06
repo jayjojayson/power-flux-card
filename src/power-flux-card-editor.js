@@ -108,6 +108,12 @@ class PowerFluxCardEditor extends LitElement {
                 if (key === 'force_kw_display' && value === true) {
                     newConfig.force_watt_display = false;
                 }
+                if (key === 'battery_split_ring' && value === true) {
+                    newConfig.battery_split_quarters = false;
+                }
+                if (key === 'battery_split_quarters' && value === true) {
+                    newConfig.battery_split_ring = false;
+                }
             }
 
             this._config = newConfig;
@@ -161,6 +167,45 @@ class PowerFluxCardEditor extends LitElement {
         fireEvent(this, "config-changed", { config: this._config });
     }
 
+    // Additional batteries (entities.batteries_extra). Each battery carries its own
+    // combined/charge/discharge/soc sensors plus unit_kw and invert flags. Max 3 extra (4 total).
+    _addBattery() {
+        const currentEntities = this._config.entities || {};
+        const list = Array.isArray(currentEntities.batteries_extra) ? [...currentEntities.batteries_extra] : [];
+        if (list.length >= 3) return;
+        list.push({ power: "", charge: "", discharge: "", soc: "", unit_kw: false, invert: false });
+        const newConfig = { ...this._config, entities: { ...currentEntities, batteries_extra: list } };
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
+    _removeBattery(index) {
+        const currentEntities = this._config.entities || {};
+        const list = Array.isArray(currentEntities.batteries_extra) ? [...currentEntities.batteries_extra] : [];
+        list.splice(index, 1);
+        const newConfig = { ...this._config, entities: { ...currentEntities, batteries_extra: list } };
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
+    _batteryExtraChanged(index, field, ev) {
+        let value;
+        if (ev.target && ev.target.tagName === 'HA-SWITCH') {
+            value = ev.target.checked;
+        } else {
+            value = (ev.detail && 'value' in ev.detail) ? ev.detail.value : ev.target.value;
+        }
+        if (value === null || value === undefined) value = "";
+        const currentEntities = this._config.entities || {};
+        const list = Array.isArray(currentEntities.batteries_extra) ? [...currentEntities.batteries_extra] : [];
+        const item = { ...(list[index] || {}) };
+        item[field] = value;
+        list[index] = item;
+        const newConfig = { ...this._config, entities: { ...currentEntities, batteries_extra: list } };
+        this._config = newConfig;
+        fireEvent(this, "config-changed", { config: this._config });
+    }
+
     _colorChanged(key, ev) {
         const newConfig = { ...this._config, [key]: ev.target.value };
         this._config = newConfig;
@@ -191,50 +236,6 @@ class PowerFluxCardEditor extends LitElement {
                     icon="mdi:close-circle" 
                     @click=${() => this._clearEntity(configValue)}
                 ></ha-icon>` : ''}
-            </div>
-        `;
-    }
-
-    _renderColorPicker(key, label, defaultColor) {
-        const currentColor = this._config[key] || defaultColor;
-        const hasCustom = !!this._config[key];
-        return html`
-            <div class="color-picker-row">
-                <input type="color" 
-                       .value=${currentColor}
-                       @input=${(e) => this._colorChanged(key, e)}>
-                <span class="color-label">${label}</span>
-                ${hasCustom ? html`<ha-icon class="color-reset-btn" 
-                    icon="mdi:refresh" 
-                    @click=${() => this._resetColor(key)}></ha-icon>` : ''}
-            </div>
-        `;
-    }
-
-    _renderColorPickerQuad(bubbleKey, pipeKey, textKey, iconKey, defaultColor) {
-        const items = [
-            { key: bubbleKey, label: this._localize('editor.color_picker'), default: defaultColor },
-            ];
-        if (pipeKey) items.push({ key: pipeKey, label: this._localize('editor.pipe_color'), default: defaultColor });
-        items.push({ key: textKey, label: this._localize('editor.text_color'), default: defaultColor });
-        items.push({ key: iconKey, label: this._localize('editor.icon_color'), default: defaultColor });
-        return html`
-            <div class="color-picker-quad">
-                ${items.map(item => {
-                    const color = this._config[item.key] || item.default;
-                    const hasCustom = !!this._config[item.key];
-                    return html`
-                        <div class="color-picker-row">
-                            <input type="color" 
-                                   .value=${color}
-                                   @input=${(e) => this._colorChanged(item.key, e)}>
-                            <span class="color-label">${item.label}</span>
-                            ${hasCustom ? html`<ha-icon class="color-reset-btn" 
-                                icon="mdi:refresh" 
-                                @click=${() => this._resetColor(item.key)}></ha-icon>` : ''}
-                        </div>
-                    `;
-                })}
             </div>
         `;
     }
@@ -331,7 +332,7 @@ class PowerFluxCardEditor extends LitElement {
         display: block;
         margin-bottom: 12px;
       }
-      /* compensates the text selector's extra reserved helper-text height (84px vs 56px) */
+      /* compensates the text/number selector's extra reserved helper-text height (84px vs 56px) */
       ha-selector.tight-label-field {
         margin-bottom: -16px;
       }
@@ -440,13 +441,6 @@ class PowerFluxCardEditor extends LitElement {
       }
       .color-reset-btn:hover {
           color: var(--primary-color);
-      }
-      .color-picker-quad {
-          display: flex;
-          gap: 8px;
-      }
-      .color-picker-quad .color-picker-row {
-          flex: 1;
       }
       .color-picker-quint {
           display: flex;
@@ -793,6 +787,21 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
+
+        <div class="separator"></div>
+
+        <ha-selector
+            class="tight-label-field"
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 500, step: 5, mode: "box", unit_of_measurement: "W" } }}
+            .value=${this._config.grid_threshold !== undefined ? this._config.grid_threshold : 0}
+            .configValue=${'grid_threshold'}
+            .label=${this._localize('editor.grid_threshold')}
+            @value-changed=${this._valueChanged}
+        ></ha-selector>
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: -4px; margin-bottom: 4px;">
+            ${this._localize('editor.grid_threshold_hint')}
+        </div>
       `;
     }
 
@@ -839,7 +848,7 @@ class PowerFluxCardEditor extends LitElement {
         <div class="separator"></div>
 
         ${this._renderEntitySelector(entitySelectorSchema, entities.battery_soc, 'battery_soc', this._localize('editor.battery_soc_label'))}
-                        
+
         <div class="separator"></div>
 
         <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
@@ -848,6 +857,104 @@ class PowerFluxCardEditor extends LitElement {
         ${this._renderEntitySelector(entitySelectorSchema, entities.grid_to_battery || "", 'grid_to_battery', this._localize('editor.grid_to_battery_sensor'))}
 
         ${this._renderEntitySelector(entitySelectorSchema, entities.secondary_battery || "", 'secondary_battery', this._localize('editor.secondary_sensor'))}
+
+        <div class="separator"></div>
+
+        <div class="color-row-title">${this._localize('editor.battery_multi_title')}</div>
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 8px;">
+            ${this._localize('editor.battery_multi_hint')}
+        </div>
+
+        ${(entities.batteries_extra || []).map((b, i) => html`
+        <div class="option-group">
+            <div class="option-group-title" style="justify-content: space-between;">
+                <span><ha-icon icon="mdi:battery-plus-variant"></ha-icon> ${this._localize('editor.battery_extra_title')} ${i + 2}</span>
+                <ha-icon class="clear-entity-btn" style="margin-top: 0;" icon="mdi:delete-outline" @click=${() => this._removeBattery(i)}></ha-icon>
+            </div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ text: {} }}
+                .value=${(b && b.label) || ""}
+                .label=${this._localize('editor.label') + " (Optional)"}
+                @value-changed=${(ev) => this._batteryExtraChanged(i, 'label', ev)}
+            ></ha-selector>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${(b && b.power) || ""}
+                .label=${this._localize('editor.entity')}
+                @value-changed=${(ev) => this._batteryExtraChanged(i, 'power', ev)}
+            ></ha-selector>
+            <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: -4px; margin-bottom: 4px;">
+                ${this._localize('editor.battery_separate_hint')}
+            </div>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${(b && b.charge) || ""}
+                .label=${this._localize('editor.battery_charge_sensor')}
+                @value-changed=${(ev) => this._batteryExtraChanged(i, 'charge', ev)}
+            ></ha-selector>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${(b && b.discharge) || ""}
+                .label=${this._localize('editor.battery_discharge_sensor')}
+                @value-changed=${(ev) => this._batteryExtraChanged(i, 'discharge', ev)}
+            ></ha-selector>
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${entitySelectorSchema}
+                .value=${(b && b.soc) || ""}
+                .label=${this._localize('editor.battery_soc_label')}
+                @value-changed=${(ev) => this._batteryExtraChanged(i, 'soc', ev)}
+            ></ha-selector>
+            <div class="switch-row">
+                <ha-switch
+                    .checked=${!!(b && b.unit_kw)}
+                    @change=${(ev) => this._batteryExtraChanged(i, 'unit_kw', ev)}
+                ></ha-switch>
+                <div class="switch-label">${this._localize('editor.battery_unit_kw')}</div>
+            </div>
+            <div class="switch-row">
+                <ha-switch
+                    .checked=${!!(b && b.invert)}
+                    @change=${(ev) => this._batteryExtraChanged(i, 'invert', ev)}
+                ></ha-switch>
+                <div class="switch-label">${this._localize('editor.invert_battery')}</div>
+            </div>
+        </div>
+        `)}
+
+        ${(entities.batteries_extra || []).length < 3 ? html`
+        <div class="add-entity-btn" @click=${() => this._addBattery()}>
+            <ha-icon icon="mdi:plus-circle-outline"></ha-icon> ${this._localize('editor.add_battery')}
+        </div>` : html`
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+            ${this._localize('editor.battery_max_hint')}
+        </div>`}
+
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.battery_split_ring === true}
+                .configValue=${'battery_split_ring'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.battery_split_ring')}</div>
+        </div>
+        <div class="switch-row">
+            <ha-switch
+                .checked=${this._config.battery_split_quarters === true}
+                .configValue=${'battery_split_quarters'}
+                @change=${this._valueChanged}
+            ></ha-switch>
+            <div class="switch-label">${this._localize('editor.battery_split_quarters')}</div>
+        </div>
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 4px;">
+            ${this._localize('editor.battery_split_hint')}
+        </div>
+
+        <div class="separator"></div>
 
         ${this._config.compact_view === true ? html`
             <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 8px;">
@@ -896,6 +1003,9 @@ class PowerFluxCardEditor extends LitElement {
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.invert_battery')}</div>
+        </div>
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: -4px; margin-bottom: 4px;">
+            ${this._localize('editor.invert_battery_hint')}
         </div>
             <div class="switch-row">
                 <ha-switch
