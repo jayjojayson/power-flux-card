@@ -1,5 +1,37 @@
 # Changelog
 
+[🇬🇧 English version](changelog_eng.md)
+
+## v_2.9
+
+### Added
+- **Mehrere Batterien (bis zu 4):** Die Batterie-Sektion lässt sich um weitere Batteriespeicher erweitern. Im Editor gibt es unter „Batterie" — analog zu den Solaranlagen — den Button „Weitere Batterie hinzufügen" (`entities.batteries_extra`, maximal 3 zusätzliche = 4 gesamt). Je Batterie ist wie beim Hauptspeicher ein gemeinsamer Sensor (positiv = laden, negativ = entladen) **oder** je ein getrennter Lade- und Entlade-Sensor möglich; pro Batterie stehen außerdem Name, SOC-Sensor, „Batterie in kW anzeigen" und „Wert umkehren (+/-)" zur Verfügung. **An der Röhre wird stets die Summe aller Batterien angezeigt**, sodass jederzeit sichtbar ist, mit wie viel Watt alle Batterien zusammen geladen oder entladen werden. Die Aggregation gilt für alle Ansichten (Standard, Horizontal, Diamant, Boxen und die kompakte Ansicht).
+- **Zwei Darstellungen für die Batterie-Bubble (je per Schalter, gegenseitig ausschließend):**
+  - **Ring-Segmente** (`battery_split_ring`): Der Kreis wird in gleich große, dünne Bögen am Rand geteilt — jeder Bogen füllt sich nach dem SOC einer Batterie (Segmente ≤ 20 % werden rot dargestellt). Der Bubble-Inhalt bleibt wie bei allen anderen Knoten: Icon oben, Name/Secondary in der Mitte, durchschnittlicher SOC unten. Im Box-Modus („Boxen mit runden Ecken statt Kreise") folgt der Ring der abgerundeten Rechteck-Kontur statt eines Kreises.
+  - **Viertel-Kreis / „Kuchen"** (`battery_split_quarters`): Der Kreis wird in Sektoren geteilt und **immer vollständig gefüllt** (keine leeren Viertel): 2 Batterien = zwei Hälften, 3 = zwei obere Viertel + untere Hälfte, 4 = vier Viertel. Jeder Sektor zeigt nur die SOC-Zahl der jeweiligen Batterie (nach Ladestand eingefärbt, ≤ 20 % rot) — kein Icon, kein Name. In der Mitte steht groß der gemeinsame durchschnittliche SOC.
+- **Netz-Schwellenwert (W) (Idee aus dem Fork von @MartB):** Neues Eingabefeld ganz unten im Netz-Tab des Editors (`grid_threshold`, 0–500 W, Schrittweite 5, Standard 0 = aus) mit kurzem Infotext. Netzbezug bzw. Netzeinspeisung unterhalb des Schwellenwerts werden als 0 W gewertet (Import und Export getrennt geprüft). Das verhindert, dass die Netz-Bubble bei ausgeglichener Netzleistung (nur wenige Watt Schwankung um 0) ständig zwischen Bezug und Einspeisung wechselt. Gilt für Standard- und kompakte Ansicht und für alle Sensor-Varianten (kombinierter Sensor, getrennter Export-Sensor, „Wert umkehren", kW-Einheit); der Hausverbrauch wird aus den bereinigten Netzwerten berechnet. Ohne Wert bleibt alles wie bisher.
+
+### Fixed
+- **Label-Schalter wirkt jetzt auch bei gesetztem Secondary-Sensor:** Der Schalter „Label statt secondary entity anzeigen" (Solar/Netz/Batterie) hatte bisher keine Wirkung, wenn ein Secondary-Sensor konfiguriert war — dann wurde immer der Secondary-Wert angezeigt. Ist der Schalter jetzt aktiv, wird stattdessen die gesetzte Beschriftung angezeigt und der Secondary-Wert ausgeblendet. Ohne aktiven Schalter bleibt alles wie bisher (Secondary hat Vorrang), also voll abwärtskompatibel.
+- **Kompakte Ansicht — eigene Icons der Haupt-Entitäten (Discussion #85):** In der kompakten Ansicht wurden für Solar, Netz, Batterie und Haus feste Icons verwendet; die im Editor gesetzten Icons (`solar_icon`, `grid_icon`, `battery_icon`, `house_icon`) hatten dort keine Wirkung. Sie werden jetzt in den oberen/unteren Klammern **und** in der Detailliste berücksichtigt. Rein additiv — ohne gesetztes Icon bleiben die bisherigen Standard-Icons. Beschriftungen bleiben wie gehabt (nur in der Detailliste, nicht in der Grafik), Farben wirkten bereits.
+- **Zweiter/dritter Sensor mit Einheit Wh:** Werte in Wh wurden als Leistung dargestellt (z. B. 2100 Wh als „2.1 kW", 350 Wh als „350 W"). Sie behalten jetzt ihre Energie-Einheit (Wh, ab 1000 Wh als kWh).
+- **Standard-Beschriftung für Verbraucher 4 und 5 übersetzt:** In der Standard-Ansicht stand ohne eigene Beschriftung fest „Consumer 4"/„Consumer 5". Jetzt wird wie in der kompakten Ansicht die übersetzte Bezeichnung verwendet („Verbr. 4"/„Verbr. 5" bzw. „Cons. 4"/„Cons. 5").
+- **Kompakte Ansicht — Textfarbe im Export-Segment:** Die Textfarbe hing an der Export-*Bubble*-Farbe statt an der Export-*Text*-Farbe. War nur die Bubble-Farbe gesetzt, hatte der Wert dieselbe Farbe wie das Segment und war nicht lesbar; eine allein gesetzte Text-Farbe wurde ignoriert. Jetzt gilt wie bei Solar, Netz und Batterie: schwarz, solange keine Text-Farbe (`color_text_export`) gesetzt ist.
+- **Größenanpassung nach dem Verschieben der Karte:** Wurde die Karte im Dashboard verschoben oder neu eingehängt, blieb die Breitenmessung (ResizeObserver) dauerhaft abgeschaltet, sodass sich Skalierung und kompakte Ansicht bei späteren Größenänderungen nicht mehr anpassten. Die Messung wird jetzt beim erneuten Einhängen wieder aktiviert.
+
+### Changed
+- **Version auf v_2.9 angehoben** (Konsolen-Banner).
+- **Editor-Beschriftungen präzisiert:** „Batterie in kW anzeigen" → „Batterie Leistung in kW anzeigen"; „Label im Kreis anzeigen" → „Label statt secondary entity anzeigen" (de/en).
+- **Hinweistext am Batterie-Schalter „Wert umkehren (+/-)":** kurzer Editor-Hinweis (`editor.invert_battery_hint`), dass Integrationen mit umgekehrtem Vorzeichen (z. B. GivTCP, Solax) hier umgestellt werden — Standard bleibt „Laden positiv, Entladen negativ".
+- **Dokumentation (README EN/DE) überarbeitet:** `card_mod` wurde durch den Nachfolger **UIX (UI eXtension)** ersetzt — Installation/Umstieg beschrieben, alle Styling-Beispiele nutzen jetzt den Schlüssel `uix:` (Inhalt unverändert). Die Feature-Liste ist vollständig (u. a. mehrere Batterien, mehrere Solar-Sensoren, Netz-Schwellenwert), und die Konfiguration wird Seite für Seite des Editors erklärt, inklusive YAML-Referenz, Beispiel und Fehlerbehebung.
+- **Englisches Changelog ergänzt:** `docs/changelog_eng.md` (die deutsche Fassung bleibt in `docs/CHANGELOG.md`).
+- **Code aufgeräumt (ohne Funktionsänderung):** Nicht mehr verwendete Code-Reste entfernt — zwei alte Farbwähler-Funktionen samt CSS im Editor, eine ungenutzte Hilfsfunktion, ungenutzte Variablen/Parameter, die CSS-Variable `--export-purple`, zwei ungenutzte Übersetzungsschlüssel sowie doppelte Kommentare. Die Darstellung ist dadurch unverändert.
+- **Performance — gezieltes Neuzeichnen:** Home Assistant meldet der Karte jede Zustandsänderung im gesamten System, bisher wurde dabei jedes Mal neu gezeichnet. Jetzt zeichnet die Karte nur noch neu, wenn sich einer ihrer eigenen Sensoren (alles unter `entities`, inklusive weiterer Solaranlagen und Batterien), die Konfiguration, die Kartengröße, die Sprache oder das Theme ändert — dann weiterhin sofort. Als Sicherheitsnetz erfolgt bei fremden Änderungen höchstens alle 2 Sekunden eine Auffrischung, damit von außen gesetzte Farben (z. B. UIX-Templates) aktuell bleiben.
+- **Standard-Icons für Verbraucher 4 und 5:** Ohne eigenes Icon zeigen sie in der Standard-Ansicht jetzt dieselben Icons wie in der kompakten Ansicht (`mdi:flash` bzw. `mdi:lightbulb`). Ein selbst gesetztes Icon und „Icons unten ausblenden" haben weiterhin Vorrang.
+
+### Notes
+- **Vollständig abwärtskompatibel:** Konfigurationen mit genau einer Batterie sehen unverändert aus; die Aufteilung greift erst ab der zweiten Batterie **und** nur, wenn einer der beiden Schalter aktiv ist. Die bisherigen Schlüssel (`battery`, `battery_charge`, `battery_discharge`, `battery_soc`, `battery_label`, `battery_unit_kw`, `invert_battery`) bleiben die erste Batterie.
+
 ## v_2.8
 
 ### Fixed
