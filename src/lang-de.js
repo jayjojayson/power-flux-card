@@ -31,6 +31,7 @@ export default {
     "editor.compact_details": "Details für Kompakte Ansicht",
     "editor.hide_inactive": "Inaktive Röhren ausblenden",
     "editor.entity": "Kombinierter Batterie Sensor (W)",
+    "editor.consumer_entity": "Verbraucher-Sensor (W)",
     "editor.label": "Beschriftung",
     "editor.icon": "Icon",
     "editor.back": "Zurück",
@@ -90,6 +91,9 @@ export default {
     "editor.consumer_hide_pipe": "Pipe bei geringer Leistung ausblenden",
     "editor.consumer_pipe_threshold": "Pipe-Schwellenwert (Watt)",
     "editor.consumer_not_set": "nicht gesetzt",
+    "editor.consumer_house_subtract": "Vom Hausverbrauch abziehen",
+    "editor.consumer_house_add": "Zum Hausverbrauch addieren",
+    "editor.consumer_house_hint": "Wirkt in der Standard-Ansicht auf den berechneten Hausverbrauch (nicht, wenn ein eigener Haus-Sensor gesetzt ist). Abziehen: für Verbraucher, die im Hausverbrauch bereits enthalten sind (z. B. Wallbox). Addieren: für Verbraucher, die ins Haus einspeisen (z. B. Gasheizung) — sie erscheinen zusätzlich als eigenes Segment im Donut des Hauses.",
     "editor.consumer_standby": "Standby-Werte ausblenden",
     "editor.consumer_standby_threshold": "Standby-Schwellenwert (Watt)",
     "editor.consumer_standby_hint": "Werte unterhalb des Schwellenwerts werden als 0 W gewertet, der Verbraucher wird dadurch ausgeblendet.",
@@ -118,6 +122,7 @@ export default {
     "card.label_consumer_5": "Verbr. 5",
     "card.label_export": "Einspeisung",
     "card.label_in": "Erzeugung",
+    "card.battery_transfer": "Batterie lädt Batterie",
     "card.label_out": "Verbrauch",
   }
 };

@@ -114,6 +114,11 @@ class PowerFluxCardEditor extends LitElement {
                 if (key === 'battery_split_quarters' && value === true) {
                     newConfig.battery_split_ring = false;
                 }
+                // A consumer is either subtracted from or added to the house consumption, never both
+                const houseMode = key.match(/^consumer_(\d)_house_(add|subtract)$/);
+                if (houseMode && value === true) {
+                    newConfig[`consumer_${houseMode[1]}_house_${houseMode[2] === 'add' ? 'subtract' : 'add'}`] = false;
+                }
             }
 
             this._config = newConfig;
@@ -524,7 +529,7 @@ class PowerFluxCardEditor extends LitElement {
                 <ha-icon class="consumer-chevron" icon="${isOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}"></ha-icon>
             </div>
             ${!isOpen ? '' : html`
-            ${this._renderEntitySelector(entitySelectorSchema, entities[`consumer_${idx}`], `consumer_${idx}`, this._localize('editor.entity'))}
+            ${this._renderEntitySelector(entitySelectorSchema, entities[`consumer_${idx}`], `consumer_${idx}`, this._localize('editor.consumer_entity'))}
 
             <ha-selector
                 .hass=${this.hass}
@@ -545,6 +550,12 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
 
             ${inlineSwitch(`invert_consumer_${idx}`, 'editor.invert_consumer')}
+
+            ${inlineSwitch(`consumer_${idx}_house_subtract`, 'editor.consumer_house_subtract')}
+            ${inlineSwitch(`consumer_${idx}_house_add`, 'editor.consumer_house_add')}
+            <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 4px;">
+                ${this._localize('editor.consumer_house_hint')}
+            </div>
 
             ${inlineSwitch(`consumer_${idx}_standby`, 'editor.consumer_standby')}
             ${cfg[`consumer_${idx}_standby`] === true ? html`
@@ -660,8 +671,8 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_solar === true} 
-                .configValue=${'show_label_solar'}
+                .checked=${this._config.prefer_label_solar === true} 
+                .configValue=${'prefer_label_solar'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
@@ -755,8 +766,8 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_grid === true} 
-                .configValue=${'show_label_grid'}
+                .checked=${this._config.prefer_label_grid === true} 
+                .configValue=${'prefer_label_grid'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
@@ -972,8 +983,8 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_battery === true} 
-                .configValue=${'show_label_battery'}
+                .checked=${this._config.prefer_label_battery === true} 
+                .configValue=${'prefer_label_battery'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>

@@ -31,6 +31,7 @@ export default {
     "editor.compact_details": "Compact View Details",
     "editor.hide_inactive": "Hide Inactive Pipes",
     "editor.entity": "Combined Battery Sensor (W)",
+    "editor.consumer_entity": "Consumer Sensor (W)",
     "editor.label": "Label",
     "editor.icon": "Icon",
     "editor.back": "Back",
@@ -90,6 +91,9 @@ export default {
     "editor.consumer_hide_pipe": "Hide pipe at low power",
     "editor.consumer_pipe_threshold": "Pipe Threshold (Watts)",
     "editor.consumer_not_set": "not set",
+    "editor.consumer_house_subtract": "Subtract from house consumption",
+    "editor.consumer_house_add": "Add to house consumption",
+    "editor.consumer_house_hint": "Affects the calculated house consumption in the standard view (not when a dedicated house sensor is set). Subtract: for consumers already contained in the house consumption (e.g. a wallbox). Add: for consumers that feed the house (e.g. a gas heating) — they also get their own segment in the house donut.",
     "editor.consumer_standby": "Hide standby values",
     "editor.consumer_standby_threshold": "Standby Threshold (Watts)",
     "editor.consumer_standby_hint": "Readings below the threshold count as 0 W, which hides the consumer entirely.",
@@ -118,6 +122,7 @@ export default {
     "card.label_consumer_5": "Cons. 5",
     "card.label_export": "Export",
     "card.label_in": "In",
+    "card.battery_transfer": "Battery charging battery",
     "card.label_out": "Out",
   }
 };

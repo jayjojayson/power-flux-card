@@ -118,7 +118,7 @@ Der Editor hat zwei Bereiche:
 | Beschriftung / Icon | `solar_label`, `solar_icon` | Name und Icon der Bubble. |
 | Zweiter Sensor | `entities.secondary_solar` | Wird zusätzlich zum Hauptwert in der Bubble angezeigt, z.B. der Tagesertrag. |
 | Farben Bubble / Pipe / Text / Icon / Secondary | `color_solar`, `color_pipe_solar`, `color_text_solar`, `color_icon_solar`, `color_secondary_solar` | Siehe [Farben](#farben). |
-| Label statt secondary entity anzeigen | `show_label_solar` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
+| Label statt secondary entity anzeigen | `prefer_label_solar` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
 | Solar in kW anzeigen | `solar_unit_kw` | Aktivieren, wenn deine Solar-Sensoren **kW melden**. Die Karte rechnet in W um. Gilt für *alle* Solar-Sensoren, gemischte Einheiten werden nicht unterstützt. |
 | Flussraten an Röhren anzeigen | `show_flow_rate_solar` | Zeigt die Leistung an den Solar-Röhren (Standard: an). |
 
@@ -146,7 +146,7 @@ Weitere Optionen auf dieser Seite:
 
 - **Beschriftung / Icon** (`grid_label`, `grid_icon`), **Zweiter Sensor** (`entities.secondary_grid`) und die fünf **Farben** (`color_grid`, `color_pipe_grid`, `color_text_grid`, `color_icon_grid`, `color_secondary_grid`).
 - **Export-Farben und -Icon** (`color_export`, `color_pipe_export`, `color_text_export`, `color_icon_export`, `color_secondary_export`, `export_icon`): Netz-Bubble, Röhre, Wert und Icon können beim Einspeisen eine andere Farbe haben — und die Export-Klammer der kompakten Ansicht ein anderes Icon. Solange sie nicht gesetzt sind, folgen sie der Export-*Bubble*-Farbe.
-- **Label statt secondary entity anzeigen** (`show_label_grid`), **Flussraten an Röhren anzeigen** (`show_flow_rate_grid`).
+- **Label statt secondary entity anzeigen** (`prefer_label_grid`), **Flussraten an Röhren anzeigen** (`show_flow_rate_grid`).
 - **Grid in kW anzeigen** (`grid_unit_kw`): Aktivieren, wenn deine Netz-Sensoren **kW melden**. Die Karte rechnet in W um.
 - **Wert umkehren (+/-)** (`invert_grid`): Kehrt das Vorzeichen des Netz-Sensors (und des kombinierten Sensors) um — für Wechselrichter, die Einspeisung positiv und Bezug negativ melden. Der separate Export-Sensor wird nicht umgekehrt.
 - **Netz-Schwellenwert (W)** (`grid_threshold`, 0–500 W, Standard `0` = aus): Bezug oder Einspeisung **unterhalb dieses Werts gilt als 0 W**. Ein ausgeglichenes Netz pendelt oft um wenige Watt um null, wodurch die Bubble ständig zwischen Bezug und Einspeisung wechselt. Setze z.B. `10`, um die Anzeige zu beruhigen. Bezug und Einspeisung werden getrennt geprüft. Der Schwellenwert wirkt in der Standard- und der Kompakten Ansicht; der berechnete Hausverbrauch nutzt die bereinigten Werte und kann deshalb um bis zu den Schwellenwert vom realen Wert abweichen.
@@ -172,7 +172,7 @@ grid_threshold: 10
 | Netz-zu-Batterie Sensor (W) | `entities.grid_to_battery` | Optional. Wenn leer, wird der aus dem Netz geladene Anteil berechnet (Solar wird zuerst genutzt, der Rest kommt aus dem Netz). |
 | Zweiter Sensor | `entities.secondary_battery` | Zusätzlicher Wert in der Bubble (z.B. die aktuelle Leistung). |
 | Farben | `color_battery`, `color_pipe_battery`, `color_text_battery`, `color_icon_battery`, `color_secondary_battery` | Siehe [Farben](#farben). |
-| Label statt secondary entity anzeigen | `show_label_battery` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
+| Label statt secondary entity anzeigen | `prefer_label_battery` | Siehe [Labels, Icons & Zusatzsensoren](#labels-icons--zusatzsensoren). |
 | Batterie Leistung in kW anzeigen | `battery_unit_kw` | Aktivieren, wenn deine Batterie-Sensoren **kW melden**. Die Karte rechnet in W um. |
 | Flussraten an Röhren anzeigen | `show_flow_rate_battery` | Zeigt die Leistung an den Batterie-Röhren (Standard: an). |
 | Wert umkehren (+/-) | `invert_battery` | Für Sensoren mit umgekehrtem Vorzeichen (Laden negativ / Entladen positiv, z.B. GivTCP oder Solax). Stimmt die Flussrichtung nicht — etwa eine Solar-/Netz → Batterie-Röhre beim Entladen — schalte dies ein. |
@@ -202,6 +202,7 @@ So werden mehrere Batterien zusammengefasst:
 - **Leistung:** Lade- und Entladeleistung aller Batterien werden **addiert**. Röhre, Flussrate und Hausberechnung nutzen immer die Summe.
 - **SOC:** Die Bubble zeigt den **Durchschnitt** aller Batterien, die einen SOC-Sensor haben.
 - **Klick:** Ein Tipp auf die Bubble öffnet den More-Info-Dialog des Batterie-Sensors (der Hauptbatterie bzw. der ersten zusätzlichen, falls kein Hauptsensor gesetzt ist).
+- **Batterie lädt Batterie:** Lädt eine Batterie aus einer anderen, erkennt die Karte das. Die Ladung wird zuerst Solar (abzüglich Einspeisung) zugeordnet, dann dem gemessenen Netzbezug; nur der Rest gilt als Austausch zwischen den Batterien und wird von Ladung und Entladung abgezogen. So erscheint keine falsche Netz → Batterie-Röhre und der Hausverbrauch bleibt korrekt, während echtes Laden aus dem Netz (z. B. bei dynamischem Strompreis) weiterhin als Netz → Batterie angezeigt wird. Dauert der Austausch länger als 30 s mit mehr als 50 W, erscheint ein kleines Warnsymbol in der Batterie-Bubble.
 - Das funktioniert in jedem Layout, auch in der Kompakten Ansicht.
 
 **Den SOC jeder Batterie anzeigen — zwei optionale Ansichten** (ab 2 Batterien aktiv, die Schalter schließen sich gegenseitig aus):
@@ -222,7 +223,7 @@ So werden mehrere Batterien zusammengefasst:
 **Haus (Gesamtverbrauch, optional)**
 
 - **Sensor für Hausverbrauch** (`entities.house`): Ohne Sensor berechnet die Karte den Verbrauch (Solar → Haus + Netz → Haus + Batterie-Entladung). Mit eigenem Sensor wird der gemessene Wert angezeigt — und die Haus-Bubble wird anklickbar (More-Info).
-- **Beschriftung, Icon** (`house_label`, `house_icon`), **Zweiter** und **Dritter Sensor** (`entities.secondary_house`, `entities.tertiary_house`), **Farben** (`color_house`, `color_text_house`, `color_icon_house`, `color_secondary_house`) und **Label statt secondary entity anzeigen** (`show_label_house`).
+- **Beschriftung, Icon** (`house_label`, `house_icon`), **Zweiter** und **Dritter Sensor** (`entities.secondary_house`, `entities.tertiary_house`), **Farben** (`color_house`, `color_text_house`, `color_icon_house`, `color_secondary_house`) und **Label statt secondary entity anzeigen** (`prefer_label_house`, nur per YAML).
 
 **Verbraucher 1–5**
 
@@ -234,6 +235,8 @@ Bis zu fünf Verbraucher mit festen Positionen: 1 = links (lila), 2 = Mitte (ora
 | Beschriftung / Icon | `consumer_N_label`, `consumer_N_icon` | Name und Icon. |
 | Sensorwert invertieren (+/-) | `invert_consumer_N` | Macht den Verbraucher zum **Erzeuger**: Ist der (invertierte) Wert negativ, kehrt sich der Fluss um und speist ins Haus ein (z.B. ein zweiter Solar- oder Hybrid-Wechselrichter). |
 | Sensor meldet in kW | `consumer_N_unit_kw` | Aktivieren, wenn der Sensor kW meldet. |
+| Vom Hausverbrauch abziehen | `consumer_N_house_subtract` | Rechnet den Verbraucher aus dem **berechneten** Hausverbrauch der Standard-Ansicht heraus, sodass das Haus nur die restliche Last zeigt. Beispiel: 4.000 W gesamt mit 2.500 W Wallbox → das Haus zeigt 1.500 W. Wird nie kleiner als 0. Ohne Wirkung auf den Wert, wenn ein eigener Haus-Sensor genutzt wird. |
+| Zum Hausverbrauch addieren | `consumer_N_house_add` | Für Verbraucher, die ins Haus einspeisen (z.B. eine Gasheizung, meist zusammen mit *Sensorwert invertieren*). Der Verbraucher wird zum berechneten Hausverbrauch addiert und bekommt im **Donut** des Hauses ein eigenes Segment in seiner Bubble-Farbe — das Donut-Segment wirkt auch mit eigenem Haus-Sensor. Das Einschalten eines der beiden Schalter schaltet den anderen aus. |
 | Standby-Werte ausblenden + Schwellenwert | `consumer_N_standby`, `consumer_N_standby_threshold` | Werte unterhalb des Schwellenwerts (0–100 W) gelten als 0 W, ein Gerät im Standby (z.B. 1–3 W) verschwindet damit vollständig (Bubble und Röhre). |
 | Pipe bei geringer Leistung ausblenden + Schwellenwert | `consumer_N_hide_pipe`, `consumer_N_pipe_threshold` | Blendet nur die Röhre unterhalb des Schwellenwerts (0–2000 W) aus — die Bubble bleibt sichtbar. |
 | Zweiter / Dritter Sensor | `entities.secondary_consumer_N`, `entities.tertiary_consumer_N` | Beide werden in einer Zeile, getrennt durch ` / `, in der Secondary-Farbe angezeigt. |
@@ -245,7 +248,7 @@ Ob ruhende Verbraucher überhaupt angezeigt werden, steuerst du global unter [Da
 
 - **Beschriftung** und **Icon** lassen sich für Solar, Netz, Batterie, Haus und jeden Verbraucher setzen. In der Kompakten Ansicht werden die gesetzten Icons in den Klammern und in der Detailliste verwendet.
 - Der **zweite Sensor** wird in der Bubble angezeigt. Der **dritte Sensor** (nur Verbraucher und Haus) teilt sich die Zeile, getrennt durch ` / `.
-- Die Beschriftung erscheint in der Bubble **nur, wenn kein zweiter Sensor konfiguriert ist** — ein konfigurierter zweiter Sensor hat Vorrang. Soll stattdessen die Beschriftung erscheinen, schalte **Label statt secondary entity anzeigen** ein (`show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house`). In der Kompakten Ansicht werden Beschriftungen nur in der Detailliste verwendet.
+- Die Beschriftung erscheint in der Bubble **nur, wenn kein zweiter Sensor konfiguriert ist** — ein konfigurierter zweiter Sensor hat Vorrang. Soll stattdessen die Beschriftung erscheinen, schalte **Label statt secondary entity anzeigen** ein (`prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house`). In der Kompakten Ansicht werden Beschriftungen nur in der Detailliste verwendet.
 
 #### Farben
 
@@ -341,7 +344,8 @@ Alle Optionen im Überblick. Optionen ohne Standardwert sind aus bzw. leer, sofe
 |---|---|---|
 | `solar_label`, `grid_label`, `battery_label`, `house_label`, `consumer_N_label` | – | Beschriftung |
 | `solar_icon`, `grid_icon`, `battery_icon`, `house_icon`, `consumer_N_icon`, `export_icon` | – | Icon (z.B. `mdi:solar-power`) |
-| `show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house` | `false` | Beschriftung statt zweitem Sensor anzeigen |
+| `prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house` | `false` | Beschriftung statt zweitem Sensor anzeigen |
+| `show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house` | `false` | Älterer Schalter (vor v_2.9 „Label im Kreis anzeigen“): zeigt die Beschriftung — bzw. den Standardnamen — in der Bubble, wenn kein zweiter Sensor gesetzt ist |
 | `solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw` | `false` | Der Sensor meldet kW (wird in W umgerechnet) |
 | `show_flow_rate_solar`, `show_flow_rate_grid`, `show_flow_rate_battery` | `true` | Flussrate an den Röhren |
 | `invert_grid`, `invert_battery`, `invert_consumer_N` | `false` | Vorzeichen des Sensors umkehren |
@@ -352,6 +356,7 @@ Alle Optionen im Überblick. Optionen ohne Standardwert sind aus bzw. leer, sofe
 | `battery_split_ring`, `battery_split_quarters` | `false` | Ansichten für mehrere Batterien (ab 2 Batterien, schließen sich aus) |
 | `consumer_N_standby`, `consumer_N_standby_threshold` | `false`, `0` | Standby-Filter (W) |
 | `consumer_N_hide_pipe`, `consumer_N_pipe_threshold` | `false`, `0` | Röhre unterhalb eines Schwellenwerts (W) ausblenden |
+| `consumer_N_house_subtract`, `consumer_N_house_add` | `false` | Verbraucher vom berechneten Hausverbrauch abziehen / dazu addieren (Standard-Ansicht, schließen sich aus) |
 | `color_<knoten>`, `color_pipe_<knoten>`, `color_text_<knoten>`, `color_icon_<knoten>`, `color_secondary_<knoten>` | – | Farben (siehe [Farben](#farben)) |
 
 **Karte**

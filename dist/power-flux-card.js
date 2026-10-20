@@ -36,6 +36,7 @@ const lang_de = {
     "editor.compact_details": "Details für Kompakte Ansicht",
     "editor.hide_inactive": "Inaktive Röhren ausblenden",
     "editor.entity": "Kombinierter Batterie Sensor (W)",
+    "editor.consumer_entity": "Verbraucher-Sensor (W)",
     "editor.label": "Beschriftung",
     "editor.icon": "Icon",
     "editor.back": "Zurück",
@@ -95,6 +96,9 @@ const lang_de = {
     "editor.consumer_hide_pipe": "Pipe bei geringer Leistung ausblenden",
     "editor.consumer_pipe_threshold": "Pipe-Schwellenwert (Watt)",
     "editor.consumer_not_set": "nicht gesetzt",
+    "editor.consumer_house_subtract": "Vom Hausverbrauch abziehen",
+    "editor.consumer_house_add": "Zum Hausverbrauch addieren",
+    "editor.consumer_house_hint": "Wirkt in der Standard-Ansicht auf den berechneten Hausverbrauch (nicht, wenn ein eigener Haus-Sensor gesetzt ist). Abziehen: für Verbraucher, die im Hausverbrauch bereits enthalten sind (z. B. Wallbox). Addieren: für Verbraucher, die ins Haus einspeisen (z. B. Gasheizung) — sie erscheinen zusätzlich als eigenes Segment im Donut des Hauses.",
     "editor.consumer_standby": "Standby-Werte ausblenden",
     "editor.consumer_standby_threshold": "Standby-Schwellenwert (Watt)",
     "editor.consumer_standby_hint": "Werte unterhalb des Schwellenwerts werden als 0 W gewertet, der Verbraucher wird dadurch ausgeblendet.",
@@ -123,6 +127,7 @@ const lang_de = {
     "card.label_consumer_5": "Verbr. 5",
     "card.label_export": "Einspeisung",
     "card.label_in": "Erzeugung",
+    "card.battery_transfer": "Batterie lädt Batterie",
     "card.label_out": "Verbrauch",
   }
 };
@@ -159,6 +164,7 @@ const lang_en = {
     "editor.compact_details": "Compact View Details",
     "editor.hide_inactive": "Hide Inactive Pipes",
     "editor.entity": "Combined Battery Sensor (W)",
+    "editor.consumer_entity": "Consumer Sensor (W)",
     "editor.label": "Label",
     "editor.icon": "Icon",
     "editor.back": "Back",
@@ -218,6 +224,9 @@ const lang_en = {
     "editor.consumer_hide_pipe": "Hide pipe at low power",
     "editor.consumer_pipe_threshold": "Pipe Threshold (Watts)",
     "editor.consumer_not_set": "not set",
+    "editor.consumer_house_subtract": "Subtract from house consumption",
+    "editor.consumer_house_add": "Add to house consumption",
+    "editor.consumer_house_hint": "Affects the calculated house consumption in the standard view (not when a dedicated house sensor is set). Subtract: for consumers already contained in the house consumption (e.g. a wallbox). Add: for consumers that feed the house (e.g. a gas heating) — they also get their own segment in the house donut.",
     "editor.consumer_standby": "Hide standby values",
     "editor.consumer_standby_threshold": "Standby Threshold (Watts)",
     "editor.consumer_standby_hint": "Readings below the threshold count as 0 W, which hides the consumer entirely.",
@@ -246,6 +255,7 @@ const lang_en = {
     "card.label_consumer_5": "Cons. 5",
     "card.label_export": "Export",
     "card.label_in": "In",
+    "card.battery_transfer": "Battery charging battery",
     "card.label_out": "Out",
   }
 };
@@ -371,6 +381,11 @@ class PowerFluxCardEditor extends LitElement {
                 }
                 if (key === 'battery_split_quarters' && value === true) {
                     newConfig.battery_split_ring = false;
+                }
+                // A consumer is either subtracted from or added to the house consumption, never both
+                const houseMode = key.match(/^consumer_(\d)_house_(add|subtract)$/);
+                if (houseMode && value === true) {
+                    newConfig[`consumer_${houseMode[1]}_house_${houseMode[2] === 'add' ? 'subtract' : 'add'}`] = false;
                 }
             }
 
@@ -782,7 +797,7 @@ class PowerFluxCardEditor extends LitElement {
                 <ha-icon class="consumer-chevron" icon="${isOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}"></ha-icon>
             </div>
             ${!isOpen ? '' : html`
-            ${this._renderEntitySelector(entitySelectorSchema, entities[`consumer_${idx}`], `consumer_${idx}`, this._localize('editor.entity'))}
+            ${this._renderEntitySelector(entitySelectorSchema, entities[`consumer_${idx}`], `consumer_${idx}`, this._localize('editor.consumer_entity'))}
 
             <ha-selector
                 .hass=${this.hass}
@@ -803,6 +818,12 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-selector>
 
             ${inlineSwitch(`invert_consumer_${idx}`, 'editor.invert_consumer')}
+
+            ${inlineSwitch(`consumer_${idx}_house_subtract`, 'editor.consumer_house_subtract')}
+            ${inlineSwitch(`consumer_${idx}_house_add`, 'editor.consumer_house_add')}
+            <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 4px;">
+                ${this._localize('editor.consumer_house_hint')}
+            </div>
 
             ${inlineSwitch(`consumer_${idx}_standby`, 'editor.consumer_standby')}
             ${cfg[`consumer_${idx}_standby`] === true ? html`
@@ -918,8 +939,8 @@ class PowerFluxCardEditor extends LitElement {
 
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_solar === true} 
-                .configValue=${'show_label_solar'}
+                .checked=${this._config.prefer_label_solar === true} 
+                .configValue=${'prefer_label_solar'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
@@ -1013,8 +1034,8 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_grid === true} 
-                .configValue=${'show_label_grid'}
+                .checked=${this._config.prefer_label_grid === true} 
+                .configValue=${'prefer_label_grid'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
@@ -1230,8 +1251,8 @@ class PowerFluxCardEditor extends LitElement {
         
         <div class="switch-row">
             <ha-switch
-                .checked=${this._config.show_label_battery === true} 
-                .configValue=${'show_label_battery'}
+                .checked=${this._config.prefer_label_battery === true} 
+                .configValue=${'prefer_label_battery'}
                 @change=${this._valueChanged}
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
@@ -1460,7 +1481,7 @@ customElements.define("power-flux-card-editor", PowerFluxCardEditor);
 
 
 console.log(
-  "%c⚡ Power Flux Card v_2.9 ready",
+  "%c⚡ Power Flux Card v_3.0 ready",
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
@@ -1617,6 +1638,18 @@ console.log(
     updated(changedProps) {
       super.updated(changedProps);
       this._lastUpdateTs = Date.now();
+      // Battery-to-battery warning: only after the transfer has lasted 30 s, so sensors that
+      // update at different moments do not make the badge flicker. The flows themselves are not delayed.
+      if ((this._batteryTransfer || 0) > 50) {
+        if (!this._transferSince) {
+          this._transferSince = Date.now();
+          clearTimeout(this._transferTimer);
+          this._transferTimer = setTimeout(() => this.requestUpdate(), 30050);
+        }
+      } else if (this._transferSince) {
+        this._transferSince = null;
+        clearTimeout(this._transferTimer);
+      }
       if (changedProps.has('hass') && this.hass) {
         const isDark = this.hass.themes?.darkMode !== false;
         if (isDark) {
@@ -1709,6 +1742,7 @@ console.log(
 
     disconnectedCallback() {
       super.disconnectedCallback();
+      clearTimeout(this._transferTimer);
       if (this._resizeObserver) {
         this._resizeObserver.disconnect();
       }
@@ -2063,6 +2097,12 @@ console.log(
       .batt-ring-fill { fill: none; stroke: var(--icon-battery-color); stroke-width: 2.5; stroke-linecap: round; transition: d 0.4s ease; }
       /* Ring mode keeps the normal bubble content (icon / name / value); the ring replaces the border */
       .bubble.battery.ring { border-color: transparent; }
+      .batt-transfer-warn {
+        position: absolute; top: 6px; right: 6px; z-index: 3;
+        --mdc-icon-size: 16px;
+        color: var(--warning-color, #ffa600);
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+      }
       /* --- MULTI-BATTERY QUARTERS (cross-split, one cell per battery + center hub) --- */
       .batt-quarters-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
       .bq-divider { stroke: var(--neon-green); opacity: 0.22; stroke-width: 1; stroke-linecap: round; }
@@ -2112,6 +2152,7 @@ console.log(
       .layout-standard   .pos-grid-house   { transform: translate(235px, 195px); }
       .layout-standard   .pos-grid-batt    { transform: translate(290px, 145px); }
       .layout-standard   .pos-batt-house   { transform: translate(320px, 235px); }
+      .layout-standard   .pos-batt-house.pos-stack   { transform: translate(320px, 249px); }
       .layout-standard   .pos-export-solar { transform: translate(130px, 145px); }
       .layout-standard   .pos-export-grid  { transform: translate(185px, 195px); }
 
@@ -2120,6 +2161,7 @@ console.log(
       .layout-horizontal .pos-grid-house   { transform: translate(205px, 200px); }
       .layout-horizontal .pos-grid-batt    { transform: translate(110px, 135px); }
       .layout-horizontal .pos-batt-house   { transform: translate(225px, 85px); }
+      .layout-horizontal .pos-batt-house.pos-stack   { transform: translate(225px, 99px); }
       .layout-horizontal .pos-export-solar { transform: translate(110px, 295px); }
       .layout-horizontal .pos-export-grid  { transform: translate(205px, 225px); }
 
@@ -2128,6 +2170,7 @@ console.log(
       .layout-diamond    .pos-grid-house   { transform: translate(130px, 225px); }
       .layout-diamond    .pos-grid-batt    { transform: translate(130px, 182px); }
       .layout-diamond    .pos-batt-house   { transform: translate(285px, 225px); }
+      .layout-diamond    .pos-batt-house.pos-stack   { transform: translate(285px, 239px); }
       .layout-diamond    .pos-export-solar { transform: translate(135px, 160px); }
       .layout-diamond    .pos-export-grid  { transform: translate(120px, 258px); }
     `;
@@ -2198,6 +2241,20 @@ console.log(
         if (found) return found;
       }
       return null;
+    }
+
+    // Battery-to-battery transfer (only with 2+ batteries): the part of the total charge that can be
+    // covered neither by solar (after export) nor by the measured grid import (or the grid-to-battery
+    // sensor) must come from a discharging battery. This share is taken out of charge and discharge,
+    // so it shows up neither as a phantom grid→battery flow nor inside the house consumption.
+    _getBatteryTransfer(battAgg, solar, gridImport, gridExport, gridToBattSensor) {
+      if (battAgg.count < 2) return 0;
+      const charge = battAgg.totalCharge;
+      const discharge = battAgg.totalDischarge;
+      if (charge <= 0 || discharge <= 0) return 0;
+      const solarAvail = Math.max(0, solar - gridExport);
+      const gridShare = gridToBattSensor !== null ? gridToBattSensor : gridImport;
+      return Math.min(discharge, Math.max(0, charge - solarAvail - gridShare));
     }
 
     // Grid readings below grid_threshold watts count as 0 W. A grid held at balance hovers a few
@@ -2565,22 +2622,26 @@ console.log(
       }
       [gridImport, gridExport] = this._applyGridThreshold(gridImport, gridExport);
 
-      // Aggregate charge/discharge across all configured batteries (single battery = unchanged)
-      const batteryCharge = battAgg.totalCharge;
-      const batteryDischarge = battAgg.totalDischarge;
+      // Aggregate charge/discharge across all configured batteries (single battery = unchanged);
+      // energy moved from one battery into another is taken out of both sides.
+      const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
+      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(getVal(entities.grid_to_battery)) : null;
+      const batteryTransfer = this._getBatteryTransfer(battAgg, solar, gridImport, gridExport, gridToBattSensorVal);
+      this._batteryTransfer = batteryTransfer;
+      const batteryCharge = battAgg.totalCharge - batteryTransfer;
+      const batteryDischarge = battAgg.totalDischarge - batteryTransfer;
       const batteryChargeViaHouse = this.config.battery_charge_via_house === true;
 
       let solarToBatt = 0;
       let gridToBatt = 0;
 
       if (batteryCharge > 0) {
-        const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
         if (batteryChargeViaHouse) {
           // Battery charges via house: no direct solar→batt or grid→batt pipes
           solarToBatt = 0;
           gridToBatt = 0;
         } else if (hasGridToBattSensor) {
-          gridToBatt = Math.abs(getVal(entities.grid_to_battery));
+          gridToBatt = gridToBattSensorVal;
           solarToBatt = Math.max(0, batteryCharge - gridToBatt);
         } else {
           if (solar >= batteryCharge) {
@@ -2588,7 +2649,8 @@ console.log(
             gridToBatt = 0;
           } else {
             solarToBatt = solar;
-            gridToBatt = batteryCharge - solar;
+            // The grid can only deliver what is actually imported
+            gridToBatt = Math.min(batteryCharge - solar, gridImport);
           }
         }
       }
@@ -2959,15 +3021,17 @@ console.log(
       const showFlowBattery = this.config.show_flow_rate_battery !== undefined ? this.config.show_flow_rate_battery : globalFlowRate;
 
       // LABEL TOGGLES
-      const showLabelSolar = this.config.show_label_solar === true || !!this.config.solar_label;
-      const showLabelGrid = this.config.show_label_grid === true || !!this.config.grid_label;
-      const showLabelBattery = this.config.show_label_battery === true || !!this.config.battery_label;
-      const showLabelHouse = this.config.show_label_house === true || !!this.config.house_label;
-      // Explicit label toggle (not just "a label is set"): when on, the label replaces the secondary sensor.
-      const preferLabelSolar = this.config.show_label_solar === true;
-      const preferLabelGrid = this.config.show_label_grid === true;
-      const preferLabelBattery = this.config.show_label_battery === true;
-      const preferLabelHouse = this.config.show_label_house === true;
+      const showLabelSolar = this.config.show_label_solar === true || this.config.prefer_label_solar === true || !!this.config.solar_label;
+      const showLabelGrid = this.config.show_label_grid === true || this.config.prefer_label_grid === true || !!this.config.grid_label;
+      const showLabelBattery = this.config.show_label_battery === true || this.config.prefer_label_battery === true || !!this.config.battery_label;
+      const showLabelHouse = this.config.show_label_house === true || this.config.prefer_label_house === true || !!this.config.house_label;
+      // "Show label instead of secondary entity" uses its own keys (prefer_label_*). The older
+      // show_label_* switches keep their original meaning (show the label when no secondary sensor
+      // is set), so existing setups that had them on keep showing their secondary sensor.
+      const preferLabelSolar = this.config.prefer_label_solar === true;
+      const preferLabelGrid = this.config.prefer_label_grid === true;
+      const preferLabelBattery = this.config.prefer_label_battery === true;
+      const preferLabelHouse = this.config.prefer_label_house === true;
 
       const useColoredValues = this.config.use_colored_values === true;
       const showDonut = this.config.show_donut_border === true;
@@ -3119,9 +3183,16 @@ console.log(
         [gridImport, gridExport] = this._applyGridThreshold(gridImport, gridExport);
       }
 
-      // Aggregate charge/discharge across all configured batteries (single battery = unchanged)
-      const batteryCharge = battAgg.totalCharge;
-      const batteryDischarge = battAgg.totalDischarge;
+      // Aggregate charge/discharge across all configured batteries (single battery = unchanged);
+      // energy moved from one battery into another is taken out of both sides.
+      const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
+      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(getVal(entities.grid_to_battery)) : null;
+      const batteryTransfer = this._getBatteryTransfer(battAgg, solarVal, gridImport, gridExport, gridToBattSensorVal);
+      this._batteryTransfer = batteryTransfer;
+      const batteryCharge = battAgg.totalCharge - batteryTransfer;
+      const batteryDischarge = battAgg.totalDischarge - batteryTransfer;
+      // Warning badge once batteries keep charging each other for 30 s (see updated())
+      const showTransferWarning = batteryTransfer > 50 && !!this._transferSince && (Date.now() - this._transferSince) >= 30000;
 
       let solarToBatt = 0;
       let gridToBatt = 0;
@@ -3130,14 +3201,13 @@ console.log(
       const batteryChargeViaHouse = this.config.battery_charge_via_house === true;
 
       if (hasBattery && batteryCharge > 0) {
-        const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
         if (batteryChargeViaHouse) {
           // Battery charges via house: no direct solar→batt or grid→batt pipes
           solarToBatt = 0;
           gridToBatt = 0;
         } else if (hasGridToBattSensor) {
           // Use dedicated grid-to-battery sensor
-          gridToBatt = Math.abs(getVal(entities.grid_to_battery));
+          gridToBatt = gridToBattSensorVal;
           solarToBatt = Math.max(0, batteryCharge - gridToBatt);
         } else {
           // Calculate: solar prioritized
@@ -3146,7 +3216,8 @@ console.log(
             gridToBatt = 0;
           } else {
             solarToBatt = solarVal;
-            gridToBatt = batteryCharge - solarVal;
+            // The grid can only deliver what is actually imported
+            gridToBatt = Math.min(batteryCharge - solarVal, gridImport);
           }
         }
       }
@@ -3155,8 +3226,25 @@ console.log(
       const gridToHouse = Math.max(0, gridImport - gridToBatt);
       const house = solarToHouse + gridToHouse + batteryDischarge;
 
+      // Optional per-consumer adjustment of the calculated house consumption:
+      // "subtract" removes a consumer that is already contained in the house total (e.g. a wallbox),
+      // "add" counts a consumer that feeds the house as an additional source (e.g. a gas heating)
+      // and gives it its own segment in the house donut.
+      let houseSubtract = 0;
+      const houseAdds = [];
+      [c1Val, c2Val, c3Val, c4Val, c5Val].forEach((val, i) => {
+        const idx = i + 1;
+        if (!entities[`consumer_${idx}`] || !(val > 0)) return;
+        if (this.config[`consumer_${idx}_house_add`] === true) houseAdds.push({ idx, val });
+        else if (this.config[`consumer_${idx}_house_subtract`] === true) houseSubtract += val;
+      });
+      const houseAddTotal = houseAdds.reduce((sum, a) => sum + a.val, 0);
+      const houseCalc = Math.max(0, house + houseAddTotal - houseSubtract);
+      // The donut shows the mix of everything that feeds the house
+      const donutTotal = house + houseAddTotal;
+
       // Use house entity for display if defined, otherwise use calculated value
-      const houseDisplay = (entities.house && entities.house !== "") ? getVal(entities.house) : house;
+      const houseDisplay = (entities.house && entities.house !== "") ? getVal(entities.house) : houseCalc;
 
       // Solar→Batt arc only visible when battery is actively charging and not via house.
       // In the diamond layout the arc is part of the ring, so keep it as inactive pipe when inactive pipes are shown.
@@ -3213,16 +3301,21 @@ console.log(
       }
 
       if (showDonut) {
-        if (house > 0) {
-          const pctSolar = (solarToHouse / house) * 100;
-          const pctGrid = (gridToHouse / house) * 100;
-          const pctBatt = (batteryDischarge / house) * 100;
+        if (donutTotal > 0) {
+          const pctSolar = (solarToHouse / donutTotal) * 100;
+          const pctGrid = (gridToHouse / donutTotal) * 100;
+          const pctBatt = (batteryDischarge / donutTotal) * 100;
 
           let stops = [];
           let current = 0;
           if (pctSolar > 0) { stops.push(`var(--neon-yellow) ${current}% ${current + pctSolar}%`); current += pctSolar; }
           if (pctBatt > 0) { stops.push(`var(--neon-green) ${current}% ${current + pctBatt}%`); current += pctBatt; }
           if (pctGrid > 0) { stops.push(`var(--neon-blue) ${current}% ${current + pctGrid}%`); current += pctGrid; }
+          houseAdds.forEach(a => {
+            const pct = (a.val / donutTotal) * 100;
+            stops.push(`var(--consumer-${a.idx}-color) ${current}% ${current + pct}%`);
+            current += pct;
+          });
           if (current < 99.9) { stops.push(`var(--neon-pink) ${current}% 100%`); }
 
           houseGradientVal = `conic-gradient(from 330deg, ${stops.join(', ')})`;
@@ -3264,7 +3357,7 @@ console.log(
       const batteryHideSocThreshold = this.config.battery_hide_soc_threshold || 0;
       const isBatteryActive = hasBatterySoc
         ? Math.round(battSoc) > batteryHideSocThreshold
-        : (Math.round(batteryCharge) > 0 || Math.round(batteryDischarge) > 0);
+        : (Math.round(battAgg.totalCharge) > 0 || Math.round(battAgg.totalDischarge) > 0);
 
       // Producer visibility: defaults to always-on (backward compatible), can be toggled off
       // so Solar/Grid/Battery bubbles disappear at 0 W just like consumers already do.
@@ -3557,7 +3650,7 @@ console.log(
 
                     <text class="${textClass} text-battery pos-batt-house" style="${getTextStyle(batteryDischarge, 'battery')} ${styleBattery}">${this._formatPower(batteryDischarge)}</text>
 
-                    <text class="${textClass} text-battery pos-batt-house" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getTextStyle(batteryCharge, 'battery') + ' ' + styleBattery : 'display:none;'}">${this._formatPower(batteryCharge)}</text>
+                    <text class="${textClass} text-battery pos-batt-house ${(batteryDischarge > 5 && batteryCharge > 5) ? 'pos-stack' : ''}" style="${(batteryChargeViaHouse && batteryCharge > 0) ? getTextStyle(batteryCharge, 'battery') + ' ' + styleBattery : 'display:none;'}">${this._formatPower(batteryCharge)}</text>
 
                 </svg>
 
@@ -3584,6 +3677,7 @@ console.log(
                 ${showBatteryBubble ? html`
                 <div class="bubble ${shapeClass} battery ${showBatteryRing ? 'ring' : ''} ${showBatteryQuarters ? 'quarters' : ''} ${nodeClass('battery')} ${tintClass} ${glowClass}"
                     @click=${() => this._handleClick(batteryClickEntity)}>
+                    ${showTransferWarning ? html`<ha-icon class="batt-transfer-warn" icon="mdi:alert-outline" title="${this._localize('card.battery_transfer')}: ${this._formatPower(batteryTransfer)}"></ha-icon>` : ''}
                     ${showBatteryQuarters ? this._renderBatteryQuarters(battAgg) : html`
                     ${showBatteryRing ? this._renderBatteryRing(battAgg, showNeonGlow, useBoxes) : ''}
                     ${renderMainIcon('battery', battSoc, iconBattery)}
