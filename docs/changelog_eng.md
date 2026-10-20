@@ -2,6 +2,27 @@
 
 [🇩🇪 Deutsche Version](CHANGELOG.md)
 
+## v_3.0
+
+### Added
+- **Subtract consumers from the house consumption (Discussion #90):** New switch "Subtract from house consumption" for every additional consumer (`consumer_N_house_subtract`). Until now the calculated house consumption of the standard view (solar → house + grid → house + battery discharge) also contained the wallbox, heater and so on. With the switch on, the consumer is taken out, so the house only shows the remaining load — as the compact view already does. The value never goes negative. A dedicated house sensor, if set, still takes priority.
+- **Add consumers to the house consumption and show them in the donut (Discussion #92):** New switch "Add to house consumption" for every additional consumer (`consumer_N_house_add`) — meant for consumers that feed the house (e.g. a gas heating with an inverted value). The consumer is added to the calculated house consumption and appears in the house donut as its own segment in its bubble color. The donut segment also works when a house sensor is set. The two switches are mutually exclusive per consumer.
+- **Detect battery charging battery (forum community-smarthome.com, thanks to OneWayToRome):** With several batteries, when one battery charged from another, this was shown as grid → battery (although there was no grid import) and the full discharge was counted as house consumption. The charge is now assigned to its sources in order: first solar (minus export), then the actually measured grid import (or the grid-to-battery sensor). Only the remainder comes from the discharging battery and is taken out of both charge and discharge. If a battery really charges from the grid (e.g. with dynamic electricity prices), this is still shown as grid → battery. Values and pipes react without delay. Applies to the standard and the compact view, only with 2 or more batteries.
+- **Warning badge "Battery charging battery":** If this transfer lasts longer than 30 seconds at more than 50 W, a small warning icon appears at the top right of the battery bubble (tooltip with the power). The delay prevents flickering when the batteries' sensors update at different moments.
+
+### Fixed
+- **Grid → battery only with real grid import:** Without a grid-to-battery sensor, the charge not covered by solar was always attributed to the grid — even if no grid import was measured. The calculated pipe is now limited to the actual grid import (also with a single battery). House consumption and all other values are unchanged by this.
+- **Overlapping values on the battery pipe:** With "Battery charge via house consumption" enabled, the discharge and the charge value sat at the same spot when both were flowing at the same time (possible with several batteries). In that case the charge value is now shown directly below.
+- **Secondary sensor no longer shown since v_2.9 (Discussion #93):** The switch "Show label instead of secondary entity", reworked in v_2.9, used the same key (`show_label_*`) as the earlier switch "Show Label in Bubble". Anyone who had that one switched on only saw the label instead of the secondary sensor after the update. The new switch now has its own keys (`prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house`), and `show_label_*` behaves as before v_2.9 again. **Note:** If you switched it on in v_2.9 on purpose to see the label instead of the secondary sensor, switch it on once more after the update.
+- **Wrong field label for consumers:** The entity field of every additional consumer was labeled "Combined Battery Sensor (W)" in the editor (taken over from the battery tab). It is now called "Consumer Sensor (W)".
+
+### Changed
+- **Version raised to v_3.0** (console banner).
+
+### Notes
+- **Fully backward compatible:** Without the new switches, house consumption and donut stay unchanged. The switches apply to the standard view (including horizontal, diamond and boxes); the compact view subtracts all consumers from the house as before.
+- **Note on "battery charging battery" and grid → battery:** These two changes apply without a switch because the previous display was wrong in these cases. With a single battery, only the calculated grid → battery pipe changes when no grid import is measured.
+
 ## v_2.9
 
 ### Added

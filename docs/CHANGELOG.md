@@ -2,6 +2,27 @@
 
 [🇬🇧 English version](changelog_eng.md)
 
+## v_3.0
+
+### Added
+- **Verbraucher vom Hausverbrauch abziehen (Discussion #90):** Neuer Schalter „Vom Hausverbrauch abziehen" je zusätzlichem Verbraucher (`consumer_N_house_subtract`). Der berechnete Hausverbrauch der Standard-Ansicht (Solar → Haus + Netz → Haus + Batterie-Entladung) enthält bisher auch Wallbox, Heizung usw. Mit dem Schalter wird der Verbraucher herausgerechnet, sodass das Haus nur noch die restliche Last zeigt — wie es die kompakte Ansicht bereits tut. Der Wert wird nie negativ. Ist ein eigener Haus-Sensor gesetzt, hat dieser weiterhin Vorrang.
+- **Verbraucher zum Hausverbrauch addieren und im Donut anzeigen (Discussion #92):** Neuer Schalter „Zum Hausverbrauch addieren" je zusätzlichem Verbraucher (`consumer_N_house_add`) — gedacht für Verbraucher, die ins Haus einspeisen (z. B. eine Gasheizung mit invertiertem Wert). Der Verbraucher wird zum berechneten Hausverbrauch addiert und erscheint im Donut des Hauses als eigenes Segment in seiner Bubble-Farbe. Das Donut-Segment wirkt auch bei gesetztem Haus-Sensor. Beide Schalter schließen sich je Verbraucher gegenseitig aus.
+- **Batterie lädt Batterie erkennen (Forum community-smarthome.com, Danke an OneWayToRome):** Lädt bei mehreren Batterien eine Batterie aus einer anderen, wurde das bisher als Netz → Batterie angezeigt (obwohl kein Netzbezug da war) und die volle Entladung dem Hausverbrauch zugerechnet. Jetzt wird die Ladung ihren Quellen der Reihe nach zugeordnet: zuerst Solar (abzüglich Einspeisung), dann der tatsächlich gemessene Netzbezug (bzw. der Netz-zu-Batterie-Sensor). Nur der Rest stammt aus der entladenden Batterie und wird von Ladung und Entladung abgezogen. Lädt eine Batterie tatsächlich aus dem Netz (z. B. bei dynamischem Strompreis), wird das weiterhin als Netz → Batterie angezeigt. Werte und Röhren reagieren ohne Verzögerung. Gilt für Standard- und kompakte Ansicht, nur ab 2 Batterien.
+- **Warnsymbol „Batterie lädt Batterie":** Läuft dieser Austausch länger als 30 Sekunden mit mehr als 50 W, erscheint oben rechts in der Batterie-Bubble ein kleines Warnsymbol (Tooltip mit der Leistung). Die Verzögerung verhindert ein Flackern, wenn die Sensoren der Batterien zu unterschiedlichen Zeitpunkten aktualisieren.
+
+### Fixed
+- **Netz → Batterie nur noch mit echtem Netzbezug:** Ohne Netz-zu-Batterie-Sensor wurde die nicht durch Solar gedeckte Ladung immer dem Netz zugerechnet — auch wenn gar kein Netzbezug gemessen wurde. Die berechnete Röhre ist jetzt auf den tatsächlichen Netzbezug begrenzt (gilt auch bei einer einzelnen Batterie). Hausverbrauch und alle anderen Werte bleiben dadurch unverändert.
+- **Überlagerte Werte an der Batterie-Röhre:** Bei aktiver „Batterie-Ladung über Hausverbrauch umleiten" standen Entlade- und Ladewert an derselben Stelle, wenn beide gleichzeitig flossen (mit mehreren Batterien möglich). Der Ladewert steht jetzt in diesem Fall direkt darunter.
+- **Zweiter Sensor wurde seit v_2.9 nicht mehr angezeigt (Discussion #93):** Der in v_2.9 überarbeitete Schalter „Label statt secondary entity anzeigen" nutzte denselben Schlüssel (`show_label_*`) wie der frühere Schalter „Label im Kreis anzeigen". Wer diesen früher eingeschaltet hatte, sah nach dem Update statt des zweiten Sensors nur noch die Beschriftung. Der neue Schalter hat jetzt eigene Schlüssel (`prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house`), `show_label_*` verhält sich wieder wie vor v_2.9. **Hinweis:** Wer den Schalter in v_2.9 bewusst eingeschaltet hat, um die Beschriftung statt des zweiten Sensors zu sehen, muss ihn nach dem Update einmal neu einschalten.
+- **Falsche Feldbeschriftung bei den Verbrauchern:** Das Entitätsfeld jedes zusätzlichen Verbrauchers hieß im Editor „Kombinierter Batterie Sensor (W)" (vom Batterie-Tab übernommen). Es heißt jetzt „Verbraucher-Sensor (W)".
+
+### Changed
+- **Version auf v_3.0 angehoben** (Konsolen-Banner).
+
+### Notes
+- **Vollständig abwärtskompatibel:** Ohne die neuen Schalter bleiben Hausverbrauch und Donut unverändert. Die Schalter wirken in der Standard-Ansicht (inkl. Horizontal, Diamant und Boxen); die kompakte Ansicht zieht alle Verbraucher wie bisher vom Haus ab.
+- **Hinweis zu „Batterie lädt Batterie" und Netz → Batterie:** Diese beiden Änderungen greifen ohne Schalter, weil die bisherige Anzeige in diesen Fällen falsch war. Bei einer einzelnen Batterie ändert sich nur die berechnete Netz → Batterie-Röhre, wenn kein Netzbezug gemessen wird.
+
 ## v_2.9
 
 ### Added
