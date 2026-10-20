@@ -15,8 +15,14 @@ Die ⚡Power Flux Card ist eine erweiterte, animierte Energiefluss-Karte für Ho
 
 Wenn euch die Card gefällt, würde ich mich sehr über eine Sternebewertung ⭐ freuen. 🤗
 
+<img width="100%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/power-flux-card-intro.gif" />
+
+<details>
+   <summary> <b>Weitere Bilder der Card</b></summary>
+
 <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-ani.gif" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card.jpg" />  
 <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact.jpg" /> <img width="49%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card-compact2.jpg" /> <img width="98%" height="auto" alt="power-flux-card" src="https://github.com/jayjojayson/power-flux-card/blob/main/docs/images/power-flux-card7.png" />
+</details>
 
 ### ✨ Funktionen
 
