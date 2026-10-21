@@ -685,6 +685,13 @@ uix:
 ```
 
 > **Note:** Each `--pipe-consumer-X-opacity` controls both the background pipe and the animated flow particles together. Set to `0` to fully hide, `1` to fully show.
-
 > **Note:** UIX must be installed separately via HACS (see above). Templates are evaluated by Home Assistant, so colors change in real time when the states change.
 </details>
+
+
+## Contributors
+
+@smoki3 for code  
+@MartB for ideas  
+@Gammenon for ideas  
+
