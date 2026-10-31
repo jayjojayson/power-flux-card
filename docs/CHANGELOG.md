@@ -2,6 +2,33 @@
 
 [🇬🇧 English version](changelog_eng.md)
 
+## v_3.1
+
+### Added
+- **Eigene Aktionen für Tippen, Halten und Doppeltippen (Discussion #84):** Für jede Bubble (Solar, Netz, Batterie, Haus, Verbraucher 1–5) lassen sich die Standard-Aktionen von Home Assistant festlegen — more-info, umschalten, Aktion ausführen, navigieren, URL öffnen, Assist oder keine (`<knoten>_tap_action`, `<knoten>_hold_action`, `<knoten>_double_tap_action`). Die Aktion wird über das `hass-action`-Event an Home Assistant übergeben (ab HA 2023.7), inklusive optionaler Bestätigungsabfrage. Im Editor gibt es dafür auf den Seiten Solar/PV, Netz und Batterie sowie beim Haus und jedem Verbraucher einen aufklappbaren Abschnitt „Interaktionen“ (standardmäßig eingeklappt) mit dem Aktions-Auswahlfeld von Home Assistant. In der Kompakten Ansicht nutzen Balkensegmente, Klammer-Icons und Detailliste die Aktionen der passenden Bubble. Halten löst nach ca. 0,5 s aus; ein einfacher Tipp wartet nur dann kurz auf ein mögliches Doppeltippen, wenn für die Bubble eine Doppeltipp-Aktion eingestellt ist.
+- **Jede Batterie einzeln anklickbar (Forum community-smarthome.com, Danke an OneWayToRome):** In der Kuchen- und Ring-Ansicht ist jedes Segment jetzt eine eigene Klickfläche und öffnet den More-Info-Dialog **seiner** Batterie (bisher öffnete jeder Klick die erste Batterie). Beim Darüberfahren zeigt ein Tooltip Name, SOC und Leistung der Batterie. Die Mitte der Bubble öffnet weiterhin die Hauptbatterie. Mit „Boxen mit runden Ecken statt Kreise“ folgen Klickflächen und Hover-Hervorhebung der Box-Form inklusive der runden Ecken.
+
+### Added (Kompakte Ansicht, Danke an MartB)
+- **Moderner Stil (`compact_modern`):** Neue Option in der Kompakten Ansicht (Editor: Darstellung & Optionen → Kompakte Ansicht): abgerundeter Balken mit dünnen Trennlinien zwischen den Segmenten, Icons in Kapseln und die Detailliste als Kacheln. Die Segmente behalten ihre Breite, sodass Balken und Klammern deckungsgleich bleiben. Die Detail-Beschriftungen nutzen eine einheitliche neutrale Farbe (sonst wirkten sie je nach gesetzten Secondary-Farben uneinheitlich grau); eine unter „Secondary“ gewählte Farbe hat weiterhin Vorrang.
+- **Zweite Sensoren in den Details:** Die Detailliste der Kompakten Ansicht zeigt jetzt die zweiten (und dritten) Sensoren von Solar, Netz, Batterie, Haus und den Verbrauchern neben der Beschriftung, z. B. „Solar 14.2 kWh“ — im klassischen wie im modernen Stil.
+- **Ladestand der Batterie (`compact_show_soc`):** Zeigt den Ladestand (bei mehreren Batterien den Durchschnitt) in Prozent neben dem Batterie-Icon in den Klammern; das Icon füllt sich passend (10-%-Schritte, ein eigenes Batterie-Icon bleibt erhalten). In den Details steht er neben der Batterie, wenn kein zweiter Sensor gesetzt ist. Ist eine Klammer zu schmal, erscheint nur das Icon. Braucht einen SOC-Sensor auf der Batterie-Seite.
+
+### Fixed
+- **Keine „0 W“-Zeilen in den Details der Kompakten Ansicht:** Ein Verbraucher (oder ein anderer Wert), der nur noch Bruchteile eines Watts liefert — z. B. eine ausgeschaltete Heizung mit 0,3 W —, wurde als „0 W“ aufgeführt. Zeilen unter 1 W werden jetzt ausgeblendet.
+- **Moderner Stil: Klammern rechts zu früh geschlossen:** Der moderne Stil hat einen etwas kleineren Seitenrand; die Klammern rechneten aber mit dem alten Rand und endeten rechts einige Pixel vor dem Balken. Sie enden jetzt bündig mit dem Balken.
+- **Moderner Stil: Kapseln nur auf der Klammerlinie:** Sitzen die Icons innerhalb der Klammern, berührten ihre Kapseln Klammerlinie und Balken. Die Kapseln erscheinen deshalb nur noch bei aktivem „Icons in die Klammern setzen“ (Icons auf der Klammerlinie); sonst wird nur das Icon gezeigt.
+- **Verbrauchswerte in den Details umbrechen nicht mehr:** Die Werte in der Detailliste (z. B. „2,6 kW“) brechen bei wenig Platz nicht mehr in zwei Zeilen um.
+- **kW-Sensoren werden automatisch erkannt (Forum community-smarthome.com):** Meldet ein Leistungssensor die Einheit `kW`, rechnet die Karte ihn jetzt selbst in W um — für Solar, Netz, Batterie, Verbraucher, Netz-zu-Batterie und **auch den eigenen Haus-Sensor**, für den es bisher gar keinen kW-Schalter gab (ein Haus-Sensor mit 0,75 kW wurde als „1 W“ angezeigt). Die kW-Schalter werden nur noch für Sensoren ohne Einheit gebraucht und erscheinen im Editor deshalb nur noch, wenn ein gewählter Sensor keine Einheit hat (oder der Schalter bereits an ist); sie heißen jetzt z. B. „Solar-Sensor meldet in kW“ und haben einen kurzen Hinweistext. Ist der Schalter an und der Sensor meldet `kW`, wird nicht doppelt umgerechnet; ein Sensor mit der Einheit `W` wird nie hochgerechnet — damit funktionieren auch gemischte Einheiten bei mehreren Solar-Sensoren.
+- **Beschriftung der Batterie-Bubble bei mehreren Batterien:** In der Ring-Ansicht stand bisher der Name der ersten Batterie in der gemeinsamen Bubble. Jetzt gilt dort die Beschriftung der Batterie-Seite (`battery_label`); ein Hinweis im Editor erklärt das. Die Namen der einzelnen Batterien erscheinen in den Segment-Tooltips.
+
+### Changed
+- **Version auf v_3.1 angehoben** (Konsolen-Banner).
+- **Versionsanzeige im Editor:** Ganz unten im Karten-Editor steht jetzt die installierte Version (z. B. „⚡ Power Flux Card v_3.1“), so sieht man sofort, welche Version läuft — praktisch nach Updates oder bei Fehlermeldungen. Ein Klick öffnet die Releases auf GitHub. Die Versionsnummer ist nur noch an einer Stelle im Code hinterlegt und wird für Editor und Konsolen-Banner gemeinsam genutzt.
+
+### Notes
+- **Sensoren in W oder ohne Einheit** werden genau wie bisher behandelt.
+- **Vollständig abwärtskompatibel:** Ohne eingestellte Aktionen öffnet ein Tipp wie bisher den More-Info-Dialog des Sensors. Neu: Auch Bubbles ohne Sensor (z. B. ein berechnetes Haus) können jetzt eine Aktion erhalten.
+
 ## v_3.0
 
 ### Added

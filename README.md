@@ -45,7 +45,7 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
 - **House**: calculated automatically, or taken from your own total-consumption sensor.
 
 **Operation**
-- **More info**: tap any bubble to open the more-info dialog of its sensor.
+- **Interactions**: tap any bubble to open the more-info dialog of its sensor – or assign your own tap, hold and double tap actions (navigate, perform an action, open a URL, …) per bubble.
 - **Visual editor**: everything above is configurable in the Home Assistant UI — no YAML required.
 - **Localization**: English and German.
 
@@ -84,7 +84,7 @@ If you like the Card, I would appreciate a Star rating ⭐ from you. 🤗
 
 You can configure the whole card in the visual editor of Home Assistant — no YAML needed. Add the card to a dashboard (**Add card → Power Flux Card**) and use the editor on the left. If you prefer YAML, every editor field has a matching key, listed in the [YAML reference](#yaml-reference).
 
-**Contents:** [Quick start](#quick-start) · [Editor overview](#editor-overview) · [Solar](#solar) · [Grid](#grid) · [Battery](#battery) · [House & consumers](#house--additional-consumers) · [Labels, icons & secondary sensors](#labels-icons--secondary-sensors) · [Colors](#colors) · [Appearance & options](#appearance--options) · [Compact view](#compact-view-evcc) · [YAML reference](#yaml-reference) · [Full example](#full-example) · [Troubleshooting](#troubleshooting) · [Styling with UIX](#-styling-with-uix)
+**Contents:** [Quick start](#quick-start) · [Editor overview](#editor-overview) · [Solar](#solar) · [Grid](#grid) · [Battery](#battery) · [House & consumers](#house--additional-consumers) · [Labels, icons & secondary sensors](#labels-icons--secondary-sensors) · [Interactions](#interactions-tap-hold-double-tap) · [Colors](#colors) · [Appearance & options](#appearance--options) · [Compact view](#compact-view-evcc) · [YAML reference](#yaml-reference) · [Full example](#full-example) · [Troubleshooting](#troubleshooting) · [Styling with UIX](#-styling-with-uix)
 
 #### Quick start
 
@@ -101,7 +101,7 @@ entities:
 
 Everything else is optional. The house consumption is calculated automatically from solar, grid and battery unless you provide your own sensor.
 
-> **Units:** the card expects **Watts**. If one of your sensors reports kW, switch on the kW option of that node (see below) — the card then converts it for you.
+> **Units:** the card works in **Watts**. Since v_3.1, power sensors whose unit is `kW` are converted automatically — this also applies to your own house sensor. The kW switches of the nodes (see below) only appear in the editor for sensors **without** a unit — enable them if such a sensor reports kW.
 
 #### Editor overview
 
@@ -124,7 +124,7 @@ The editor has two areas:
 | Secondary Sensor | `entities.secondary_solar` | Shown in the bubble in addition to the main value, e.g. the daily yield. |
 | Bubble / Pipe / Text / Icon / Secondary color | `color_solar`, `color_pipe_solar`, `color_text_solar`, `color_icon_solar`, `color_secondary_solar` | See [Colors](#colors). |
 | Show label instead of secondary entity | `prefer_label_solar` | See [Labels, icons & secondary sensors](#labels-icons--secondary-sensors). |
-| Show Solar in kW | `solar_unit_kw` | Enable it if your solar sensors **report kW**. The card converts to W. Applies to *all* solar sensors, so mixed units are not supported. |
+| Solar sensor reports in kW | `solar_unit_kw` | Only shown if a solar sensor has **no unit**. Enable it if that sensor reports kW. Sensors with the unit `kW` or `W` are always read correctly, so mixed units work. |
 | Show flow rates on pipes | `show_flow_rate_solar` | Shows the power on the solar pipes (default: on). |
 
 ```yaml
@@ -152,7 +152,7 @@ Further options on this page:
 - **Label / Icon** (`grid_label`, `grid_icon`), **Secondary Sensor** (`entities.secondary_grid`) and the five **colors** (`color_grid`, `color_pipe_grid`, `color_text_grid`, `color_icon_grid`, `color_secondary_grid`).
 - **Export colors and icon** (`color_export`, `color_pipe_export`, `color_text_export`, `color_icon_export`, `color_secondary_export`, `export_icon`): the grid bubble, its pipe, value and icon can use a different color — and the export bracket in the compact view a different icon — while power is being exported. Until you set them they follow the export *bubble* color.
 - **Show label instead of secondary entity** (`prefer_label_grid`), **Show flow rates on pipes** (`show_flow_rate_grid`).
-- **Show Grid in kW** (`grid_unit_kw`): enable it if your grid sensors **report kW**. The card converts to W.
+- **Grid sensor reports in kW** (`grid_unit_kw`): only shown if a grid sensor has **no unit**. Enable it if that sensor reports kW. Sensors with the unit `kW` are converted automatically.
 - **Invert Power Value (+/-)** (`invert_grid`): flips the sign of the grid sensor (and the combined sensor) — for inverters that report export as positive and import as negative. The separate export sensor is not inverted.
 - **Grid threshold (W)** (`grid_threshold`, 0–500 W, default `0` = off): import or export **below this value counts as 0 W**. A grid held at balance often hovers a few watts around zero, which makes the bubble flip between import and export all the time. Set e.g. `10` to calm the display. Import and export are checked separately. It applies to both the standard and the compact view; the calculated house consumption uses the cleaned values, so it can differ from the real value by up to the threshold.
 
@@ -178,7 +178,7 @@ grid_threshold: 10
 | Secondary Sensor | `entities.secondary_battery` | Additional value in the bubble (e.g. the current power). |
 | Colors | `color_battery`, `color_pipe_battery`, `color_text_battery`, `color_icon_battery`, `color_secondary_battery` | See [Colors](#colors). |
 | Show label instead of secondary entity | `prefer_label_battery` | See [Labels, icons & secondary sensors](#labels-icons--secondary-sensors). |
-| Show battery power in kW | `battery_unit_kw` | Enable it if your battery sensors **report kW**. The card converts to W. |
+| Battery sensor reports in kW | `battery_unit_kw` | Only shown if a battery sensor has **no unit**. Enable it if that sensor reports kW. Sensors with the unit `kW` are converted automatically. |
 | Show flow rates on pipes | `show_flow_rate_battery` | Shows the power on the battery pipes (default: on). |
 | Invert Power Value (+/-) | `invert_battery` | For sensors with the opposite sign (charging negative / discharging positive, e.g. GivTCP or Solax). If the flow direction is wrong — for example a solar/grid → battery pipe while the battery discharges — switch this on. |
 | Battery charge via house consumption | `battery_charge_via_house` | Removes the direct solar → battery and grid → battery pipes. The charging energy is routed through the house instead. |
@@ -206,7 +206,8 @@ How several batteries are combined:
 
 - **Power:** charge and discharge power of all batteries are **summed**. The pipe, the flow rate and the house calculation always use the total.
 - **SoC:** the bubble shows the **average** SoC of all batteries that have an SoC sensor.
-- **Click:** tapping the bubble opens the more-info dialog of the battery sensor (the primary battery, or the first additional one if no primary sensor is set).
+- **Click:** tapping the bubble opens the more-info dialog of the battery sensor (the primary battery, or the first additional one if no primary sensor is set). With the pie or ring view switched on, every segment is its own click area: tapping a segment opens **that** battery, and hovering shows its name, SoC and power.
+- **Name:** with several batteries, `battery_label` names the shared bubble. The individual batteries use their own name (or their sensor's name) in the segment tooltips.
 - **Battery charging battery:** if one battery charges from another, the card detects it. The charge is first assigned to solar (minus export), then to the measured grid import; only the remainder counts as transfer between the batteries and is taken out of charge and discharge. So no phantom grid → battery flow appears and the house consumption stays correct, while real grid charging (e.g. with dynamic prices) is still shown as grid → battery. If the transfer lasts longer than 30 s at more than 50 W, a small warning icon appears in the battery bubble.
 - This works in every layout, including the compact view.
 
@@ -254,6 +255,35 @@ Whether idle consumers are shown at all is controlled globally, see [Pipes & Con
 - **Label** and **Icon** can be set for solar, grid, battery, house and every consumer. In the compact view the icons you set are used in the brackets and in the details list.
 - The **secondary sensor** is shown inside the bubble. The **third sensor** (consumers and house only) shares its line, separated by ` / `.
 - The label shows up in the bubble **only if no secondary sensor is configured** — a configured secondary sensor wins. To show the label instead, switch on **Show label instead of secondary entity** (`prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house`). In the compact view, labels are only used in the details list.
+
+#### Interactions (tap, hold, double tap)
+
+*Editor: section **Interactions** at the bottom of the Solar, Grid and Battery pages, and inside the house and every consumer on the Additional Consumers page (collapsed by default – click it to expand).*
+
+By default, tapping a bubble opens the more-info dialog of its sensor. For every bubble you can instead assign the standard Home Assistant actions – the same ones the built-in cards offer: more-info, toggle, perform action, navigate, open URL, assist or none.
+
+| YAML key | Default | Description |
+|---|---|---|
+| `<node>_tap_action` | more-info | Action on a tap |
+| `<node>_hold_action` | none | Action when holding the bubble for about half a second |
+| `<node>_double_tap_action` | none | Action on a double tap (a single tap then waits briefly, only for bubbles with a double tap action) |
+
+`<node>` is `solar`, `grid`, `battery`, `house` or `consumer_1` … `consumer_5`. In the compact view, the bar segments, bracket icons and the details list use the actions of the matching bubble (export belongs to `grid`).
+
+```yaml
+solar_tap_action:
+  action: navigate
+  navigation_path: /energy
+consumer_1_hold_action:
+  action: perform-action
+  perform_action: switch.toggle
+  target:
+    entity_id: switch.wallbox
+house_double_tap_action:
+  action: none
+```
+
+> **Tip:** a bubble shows a power sensor, so a plain *toggle* would try to toggle that sensor. To switch a device, use *perform action* with the device as target (as in the example above).
 
 #### Colors
 
@@ -315,10 +345,16 @@ The compact view replaces the bubbles with a minimalist bar chart: the brackets 
 | Enable Compact View | `compact_view` | Switches the card to the compact layout. |
 | Compact View Details | `compact_details` | Adds a details list with all values below the bar. |
 | Neon Glow in Compact View | `compact_glow` | Glow effect for the bar. |
+| Modern style | `compact_modern` | Rounded bar with thin seams between the segments, icons in pills (the pills only appear when the icons sit on the bracket line, see below; otherwise just the icon) and the details list as tiles. One neutral label color in the details (a color you picked under *Secondary* still wins). |
+| Show battery charge level | `compact_show_soc` | Shows the charge level (the average with several batteries) in percent next to the battery icon in the brackets, and the icon fills to match (10 % steps; a custom battery icon is kept). In the details it appears next to the battery. Needs an SoC sensor on the battery page. Where a bracket is too narrow, only the icon is shown. |
 | Place icons on the bracket line | `compact_icons_in_bracket` | Off: icons sit inside the brackets and the bracket line stays unbroken. On: icons are centered on the bracket line and interrupt it. |
 | Include export in the bar | `compact_bar_selfuse` | Off: the bar shows the sources at full size and the export appears as a bracket below. On: the export becomes a colored segment in the bar, and solar/battery show only the share used in the house. |
 
 In the compact view, consumers appear with their configured icons, labels and colors, and the battery can use separate charge and discharge colors.
+
+Consumers and other values that are at 0 W are not listed in the details.
+
+The details list also shows the **secondary** (and tertiary) sensors of solar, grid, battery, house and the consumers, next to their label — in the classic as well as in the modern style. The battery shows its charge level there instead if you enabled *Show battery charge level* and no secondary sensor is set.
 
 #### YAML reference
 
@@ -351,7 +387,7 @@ All options at a glance. Options without a default are off/empty unless stated o
 | `solar_icon`, `grid_icon`, `battery_icon`, `house_icon`, `consumer_N_icon`, `export_icon` | – | Icon (e.g. `mdi:solar-power`) |
 | `prefer_label_solar`, `prefer_label_grid`, `prefer_label_battery`, `prefer_label_house` | `false` | Show the label instead of the secondary sensor |
 | `show_label_solar`, `show_label_grid`, `show_label_battery`, `show_label_house` | `false` | Older switch (before v_2.9 "Show Label in Bubble"): shows the label — or the default name — in the bubble when no secondary sensor is set |
-| `solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw` | `false` | The sensor reports kW (converted to W) |
+| `solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw` | `false` | The sensor reports kW (converted to W). Only needed for sensors without a unit — sensors with the unit `kW` are converted automatically |
 | `show_flow_rate_solar`, `show_flow_rate_grid`, `show_flow_rate_battery` | `true` | Flow rate on the pipes |
 | `invert_grid`, `invert_battery`, `invert_consumer_N` | `false` | Invert the sensor sign |
 | `grid_threshold` | `0` | Grid import/export below this value (W) counts as 0 |
@@ -363,6 +399,7 @@ All options at a glance. Options without a default are off/empty unless stated o
 | `consumer_N_hide_pipe`, `consumer_N_pipe_threshold` | `false`, `0` | Hide the pipe below a threshold (W) |
 | `consumer_N_house_subtract`, `consumer_N_house_add` | `false` | Subtract the consumer from / add it to the calculated house consumption (standard view, mutually exclusive) |
 | `color_<node>`, `color_pipe_<node>`, `color_text_<node>`, `color_icon_<node>`, `color_secondary_<node>` | – | Colors (see [Colors](#colors)) |
+| `<node>_tap_action`, `<node>_hold_action`, `<node>_double_tap_action` | more-info / none / none | Interactions (see [Interactions](#interactions-tap-hold-double-tap)) |
 
 **Card**
 
@@ -378,7 +415,7 @@ All options at a glance. Options without a default are off/empty unless stated o
 | `hide_consumer_icons` | `false` | Hide consumer icons |
 | `force_watt_display`, `force_kw_display` | `false` | Force one unit |
 | `show_flow_rates` | `true` | Global default for flow rates (YAML only) |
-| `compact_view`, `compact_details`, `compact_glow`, `compact_icons_in_bracket`, `compact_bar_selfuse` | `false` | Compact view |
+| `compact_view`, `compact_details`, `compact_glow`, `compact_icons_in_bracket`, `compact_bar_selfuse`, `compact_modern`, `compact_show_soc` | `false` | Compact view |
 
 #### Full example
 
@@ -419,7 +456,7 @@ hide_inactive_flows: true
 
 - **The battery pipe points the wrong way** (e.g. a solar → battery pipe while the battery discharges, or no battery → house pipe): your integration reports the opposite sign. Switch on **Invert Power Value** in the *Battery* page (`invert_battery`). Use the one in the *Grid* page only for the grid sensor.
 - **The grid bubble flickers between import and export** at a balanced grid: set a small **Grid threshold (W)**, e.g. 10.
-- **Values are 1000× too small or large:** the sensor reports kW. Enable the kW switch of that node (`solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw`).
+- **Values are 1000× too small:** the sensor reports kW but has no unit (sensors with the unit `kW` are converted automatically since v_3.1). Enable the kW switch of that node (`solar_unit_kw`, `grid_unit_kw`, `battery_unit_kw`, `consumer_N_unit_kw`).
 - **A consumer never disappears although it is idle:** use **Hide standby values** for that consumer, and make sure **Show Consumers at zero watts** is off.
 - **The editor still shows the old texts or options after an update:** clear the browser cache or hard-refresh the dashboard — Home Assistant caches the card file.
 - **The secondary sensor hides my label:** a configured secondary sensor has priority. Switch on **Show label instead of secondary entity** for that node.
@@ -688,10 +725,11 @@ uix:
 > **Note:** UIX must be installed separately via HACS (see above). Templates are evaluated by Home Assistant, so colors change in real time when the states change.
 </details>
 
+## 🙌 Contributors
 
-## Contributors
+Thanks to everyone who helps to improve the card with ideas, bug reports and code:
 
-@smoki3 for code  
-@MartB for ideas  
-@Gammenon for ideas  
-
+- [**smoki3**](https://github.com/smoki3) — code
+- [**MartB**](https://github.com/MartB) — grid threshold, compact view *modern style*, battery charge level in the compact view
+- **Gammenon** — ideas
+- **OneWayToRome** (community-smarthome.com forum) — multi-battery feedback and many ideas

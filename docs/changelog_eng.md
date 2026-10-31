@@ -2,6 +2,33 @@
 
 [🇩🇪 Deutsche Version](CHANGELOG.md)
 
+## v_3.1
+
+### Added
+- **Custom tap, hold and double tap actions (Discussion #84):** Every bubble (solar, grid, battery, house, consumers 1–5) can use the standard Home Assistant actions — more-info, toggle, perform action, navigate, open URL, assist or none (`<node>_tap_action`, `<node>_hold_action`, `<node>_double_tap_action`). The action is handed to Home Assistant via the `hass-action` event (HA 2023.7 or later), including the optional confirmation. In the editor, the Solar, Grid and Battery pages as well as the house and every consumer get a collapsible "Interactions" section (collapsed by default) with Home Assistant's action picker. In the compact view, bar segments, bracket icons and the details list use the actions of the matching bubble. Hold triggers after about 0.5 s; a single tap only waits briefly for a possible double tap if the bubble has a double tap action.
+- **Every battery clickable on its own (forum community-smarthome.com, thanks to OneWayToRome):** In the pie and ring views, every segment is now its own click area and opens the more-info dialog of **its** battery (until now every click opened the first battery). Hovering shows a tooltip with the battery's name, SoC and power. The center of the bubble still opens the primary battery. With "boxes with rounded corners instead of circles", the click areas and the hover highlight follow the box shape, including the rounded corners.
+
+### Added (compact view, thanks to MartB)
+- **Modern style (`compact_modern`):** New option in the compact view (editor: Appearance & Options → Compact View): rounded bar with thin seams between the segments, icons in pills and the details list as tiles. The segments keep their widths, so bar and brackets stay aligned. The detail labels use one neutral color (they used to look mismatched, depending on which secondary colors were set); a color picked under "Secondary" still wins.
+- **Secondary sensors in the details:** The compact view's details list now shows the secondary (and tertiary) sensors of solar, grid, battery, house and the consumers next to their label, e.g. "Solar 14.2 kWh" — in the classic as well as the modern style.
+- **Battery charge level (`compact_show_soc`):** Shows the charge level (the average with several batteries) in percent next to the battery icon in the brackets; the icon fills to match (10 % steps, a custom battery icon is kept). In the details it appears next to the battery if no secondary sensor is set. If a bracket is too narrow, only the icon is shown. Needs an SoC sensor on the battery page.
+
+### Fixed
+- **No "0 W" rows in the compact view's details:** A consumer (or any other value) delivering only a fraction of a watt — e.g. a switched-off heater at 0.3 W — was listed as "0 W". Rows below 1 W are now hidden.
+- **Modern style: brackets ended too early on the right:** The modern style has a slightly smaller side padding, but the brackets still calculated with the old one and ended a few pixels short of the bar on the right. They now end flush with the bar.
+- **Modern style: pills only on the bracket line:** With the icons inside the brackets, their pills touched the bracket line and the bar. The pills now only appear when "Place icons on the bracket line" is on; otherwise just the icon is shown.
+- **Values in the details no longer wrap:** The values in the details list (e.g. "2.6 kW") no longer break onto two lines when space is tight.
+- **kW sensors are detected automatically (forum community-smarthome.com):** If a power sensor reports the unit `kW`, the card now converts it to W itself — for solar, grid, battery, consumers, grid-to-battery and **also your own house sensor**, which had no kW switch at all so far (a house sensor at 0.75 kW was shown as "1 W"). The kW switches are only needed for sensors without a unit, so the editor now only shows them when a selected sensor has no unit (or the switch is already on); they are now called e.g. "Solar sensor reports in kW" and have a short hint. If the switch is on and the sensor reports `kW`, nothing is converted twice; a sensor with the unit `W` is never multiplied — so mixed units across several solar sensors work too.
+- **Battery bubble label with several batteries:** In the ring view, the shared bubble showed the name of the first battery. It now uses the label of the battery page (`battery_label`); an editor hint explains this. The names of the individual batteries appear in the segment tooltips.
+
+### Changed
+- **Version raised to v_3.1** (console banner).
+- **Version shown in the editor:** The installed version (e.g. "⚡ Power Flux Card v_3.1") is now shown at the very bottom of the card editor, so you can see right away which version is running — handy after updates or when reporting an issue. A click opens the releases on GitHub. The version number now lives in one place in the code and is shared by the editor and the console banner.
+
+### Notes
+- **Sensors in W or without a unit** are handled exactly as before.
+- **Fully backward compatible:** Without configured actions, a tap opens the sensor's more-info dialog as before. New: bubbles without a sensor (e.g. a calculated house) can now get an action too.
+
 ## v_3.0
 
 ### Added

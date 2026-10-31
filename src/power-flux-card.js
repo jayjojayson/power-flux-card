@@ -1,9 +1,9 @@
-import { } from "./power-flux-card-editor.js";
+import { CARD_VERSION } from "./power-flux-card-editor.js";
 import lang_en from "./lang-en.js";
 import lang_de from "./lang-de.js";
 
 console.log(
-  "%c⚡ Power Flux Card v_3.0 ready",
+  `%c⚡ Power Flux Card ${CARD_VERSION} ready`,
   "background: #d19525ff; color: #000; padding: 2px 6px; border-radius: 4px; font-weight: bold;"
 );
 
@@ -43,6 +43,8 @@ console.log(
         compact_glow: false,
         compact_bar_selfuse: false,
         compact_icons_in_bracket: false,
+        compact_modern: false,
+        compact_show_soc: false,
         horizontal_view: false,
         diamond_view: false,
         use_boxes: false,
@@ -103,6 +105,84 @@ console.log(
       });
       event.detail = { entityId };
       this.dispatchEvent(event);
+    }
+
+    // --- Interactions (tap / hold / double tap) ---
+    // Every clickable node carries data-node / data-entity. Without a configured action the tap keeps
+    // the classic more-info behaviour; configured actions are handed to Home Assistant via "hass-action".
+    _getAction(node, kind) {
+      const a = this.config && this.config[`${node}_${kind}_action`];
+      return (a && typeof a === 'object' && a.action) ? a : null;
+    }
+
+    _isActionable(node, entityId) {
+      const tap = this._getAction(node, 'tap');
+      if (tap) return tap.action !== 'none';
+      return !!entityId || !!this._getAction(node, 'hold') || !!this._getAction(node, 'double_tap');
+    }
+
+    _findActionTarget(ev) {
+      const el = ev.composedPath().find(n => n && n.dataset && n.dataset.node);
+      return el ? { node: el.dataset.node, entity: el.dataset.entity || '' } : null;
+    }
+
+    _fireAction(target, action) {
+      const config = {
+        tap_action: this._getAction(target.node, 'tap') || { action: 'more-info' },
+        hold_action: this._getAction(target.node, 'hold') || { action: 'none' },
+        double_tap_action: this._getAction(target.node, 'double_tap') || { action: 'none' },
+      };
+      if (target.entity) config.entity = target.entity;
+      const event = new Event('hass-action', { bubbles: true, composed: true });
+      event.detail = { config, action };
+      this.dispatchEvent(event);
+    }
+
+    _runTap(target) {
+      const tap = this._getAction(target.node, 'tap');
+      if (!tap) { if (target.entity) this._handleClick(target.entity); return; }
+      if (tap.action === 'none') return;
+      this._fireAction(target, 'tap');
+    }
+
+    _onActionDown(ev) {
+      clearTimeout(this._holdTimer);
+      this._held = false;
+      const target = this._findActionTarget(ev);
+      const hold = target ? this._getAction(target.node, 'hold') : null;
+      if (!hold || hold.action === 'none') return;
+      this._holdTimer = setTimeout(() => { this._held = true; this._fireAction(target, 'hold'); }, 500);
+    }
+
+    _onActionUp() {
+      clearTimeout(this._holdTimer);
+    }
+
+    _onActionContext(ev) {
+      // Long-press on touch devices would otherwise open the browser context menu
+      const target = this._findActionTarget(ev);
+      const hold = target ? this._getAction(target.node, 'hold') : null;
+      if (hold && hold.action !== 'none') ev.preventDefault();
+    }
+
+    _onActionClick(ev) {
+      const target = this._findActionTarget(ev);
+      if (!target) return;
+      if (this._held) { this._held = false; return; }
+      const dbl = this._getAction(target.node, 'double_tap');
+      if (dbl && dbl.action !== 'none') {
+        // Only nodes with a double tap action wait briefly for a second tap
+        if (this._tapTimer && this._tapNode === target.node) {
+          clearTimeout(this._tapTimer); this._tapTimer = null;
+          this._fireAction(target, 'double_tap');
+          return;
+        }
+        clearTimeout(this._tapTimer);
+        this._tapNode = target.node;
+        this._tapTimer = setTimeout(() => { this._tapTimer = null; this._runTap(target); }, 250);
+        return;
+      }
+      this._runTap(target);
     }
 
     setConfig(config) {
@@ -264,6 +344,8 @@ console.log(
 
     disconnectedCallback() {
       super.disconnectedCallback();
+      clearTimeout(this._holdTimer);
+      clearTimeout(this._tapTimer);
       clearTimeout(this._transferTimer);
       if (this._resizeObserver) {
         this._resizeObserver.disconnect();
@@ -452,11 +534,70 @@ console.log(
       .compact-detail-label {
         opacity: 0.7;
         white-space: nowrap;
+        /* on narrow cards the label gives way (with an ellipsis) instead of pushing the value out */
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .compact-detail-value {
         font-weight: bold;
         margin-left: auto;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
+      .compact-detail-secondary {
+        font-size: 11px;
+        opacity: 0.6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex-shrink: 3; /* the secondary text yields first */
+      }
+      .compact-icon-badge {
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 3px;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* --- COMPACT VIEW, MODERN STYLE (compact_modern) --- */
+      .compact-container.modern { padding: 14px 16px 12px; }
+      .modern .compact-bar-wrapper { height: 32px; margin: 6px 0; border-radius: 12px; background: transparent; }
+      .modern .bar-segment {
+        box-sizing: border-box;
+        border-radius: 8px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
+        font-variant-numeric: tabular-nums;
+        background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.06));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      }
+      /* a thin card-colored seam instead of a flex gap keeps the segments aligned with the brackets */
+      .modern .bar-segment + .bar-segment { border-left: 2px solid var(--ha-card-background, var(--card-background-color, #1c1c1c)); }
+      .modern .bar-segment:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+      .modern .bar-segment:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+      .modern .bracket-line { stroke-width: 1.25; opacity: 0.5; }
+      /* the pill only appears while the icons sit on the bracket line; inside the bracket it would touch line and bar */
+      .modern.icons-on-line .compact-icon-wrapper {
+        padding: 2px 7px; border-radius: 999px;
+        background: var(--ha-card-background, var(--card-background-color, #1c1c1c));
+      }
+      .modern .compact-icon { --mdc-icon-size: 18px; }
+      .modern .compact-details { gap: 10px; margin-top: 8px; padding: 6px 0 0; }
+      .modern .compact-details-column { border-right: none; padding-right: 0; gap: 6px; }
+      .modern .compact-details-header {
+        text-align: left; border-bottom: none; font-size: 10.5px; font-weight: 600;
+        letter-spacing: 1px; opacity: 0.45; margin: 0 0 2px 4px;
+      }
+      .modern .compact-detail-item {
+        gap: 8px; padding: 7px 10px; border-radius: 12px;
+        background: color-mix(in srgb, var(--primary-text-color, #fff) 5%, transparent);
+      }
+      /* One label colour for every row: per-entity secondary colours only exist for some entities,
+         which left the labels in mismatched greys. A picked secondary colour is set inline and wins. */
+      .modern .compact-detail-label { color: var(--primary-text-color); opacity: 0.85; }
+      .modern .compact-detail-secondary { color: var(--secondary-text-color); opacity: 1; }
+      .modern .compact-detail-value { font-weight: 600; font-variant-numeric: tabular-nums; }
       
       /* --- STANDARD VIEW STYLES --- */
       .scale-wrapper {
@@ -614,13 +755,14 @@ console.log(
       .bubble.box .sub.secondary-val.dual { font-size: var(--font-size-secondary-dual, 9px); }
 
       /* --- MULTI-BATTERY RING (bubble split into one SoC arc per battery) --- */
-      .batt-ring-svg { position: absolute; top: -2px; left: -2px; width: calc(100% + 4px); height: calc(100% + 4px); z-index: 2; pointer-events: none; overflow: visible; }
+      .batt-ring-svg { position: absolute; top: -2px; left: -2px; width: calc(100% + 4px); height: calc(100% + 4px); z-index: 3; pointer-events: none; overflow: visible; }
+      /* the ring's click areas sit above value/label; the transparent band keeps them readable */
       .batt-ring-track { fill: none; stroke: var(--icon-battery-color); opacity: 0.20; stroke-width: 2.5; stroke-linecap: round; }
       .batt-ring-fill { fill: none; stroke: var(--icon-battery-color); stroke-width: 2.5; stroke-linecap: round; transition: d 0.4s ease; }
       /* Ring mode keeps the normal bubble content (icon / name / value); the ring replaces the border */
       .bubble.battery.ring { border-color: transparent; }
       .batt-transfer-warn {
-        position: absolute; top: 6px; right: 6px; z-index: 3;
+        position: absolute; top: 6px; right: 6px; z-index: 4;
         --mdc-icon-size: 16px;
         color: var(--warning-color, #ffa600);
         filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
@@ -629,6 +771,9 @@ console.log(
       .batt-quarters-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
       .bq-divider { stroke: var(--neon-green); opacity: 0.22; stroke-width: 1; stroke-linecap: round; }
       .bq-soc { fill: var(--icon-battery-color); font-size: 15px; font-weight: bold; }
+      .batt-hit { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; transition: fill .2s ease; }
+      .batt-hit:hover { fill: rgba(255, 255, 255, 0.06); }
+      .bq-hub-bg { pointer-events: all; cursor: pointer; }
       .bq-hub-bg { fill: var(--ha-card-background, var(--card-background-color, #1c1c1c)); stroke: var(--neon-green); stroke-width: 1; opacity: 0.96; }
       .bq-hub-soc { fill: var(--text-battery-color, var(--neon-green)); font-size: 17px; font-weight: bold; }
 
@@ -737,19 +882,28 @@ console.log(
       return html``;
     }
 
+    // Reads a power sensor in W. Sensors whose unit is "kW" are converted automatically; the
+    // *_unit_kw switches cover sensors that report kW without a unit. A sensor that declares "W"
+    // is never multiplied (so mixed W/kW solar sensors work). The factor is applied at most once.
+    _readPower(entityId, forceKw = false) {
+      if (!entityId || !this.hass) return 0;
+      const st = this.hass.states[entityId];
+      if (!st) return 0;
+      const val = parseFloat(st.state) || 0;
+      const unit = String((st.attributes && st.attributes.unit_of_measurement) || '').trim().toLowerCase();
+      if (unit === 'kw') return val * 1000;
+      if (forceKw && unit !== 'w') return val * 1000;
+      return val;
+    }
+
     // Sums the primary solar sensor plus any additional solar sensors configured under entities.solar_extra.
     // solar_unit_kw is applied uniformly to all of them (mixed units are not supported).
     _getSolarTotal(entities) {
       const unitKw = this.config.solar_unit_kw === true;
-      const factor = unitKw ? 1000 : 1;
-      const getVal = (entity) => {
-        const state = this.hass.states[entity];
-        return state ? parseFloat(state.state) || 0 : 0;
-      };
-      let total = entities.solar ? getVal(entities.solar) * factor : 0;
+      let total = entities.solar ? this._readPower(entities.solar, unitKw) : 0;
       if (Array.isArray(entities.solar_extra)) {
         entities.solar_extra.forEach(id => {
-          if (id) total += getVal(id) * factor;
+          if (id) total += this._readPower(id, unitKw);
         });
       }
       return total;
@@ -815,9 +969,7 @@ console.log(
     // Standby: readings below the threshold are treated as 0 so idle devices disappear entirely.
     _getConsumerValue(entityId, index) {
       if (!entityId) return 0;
-      const state = this.hass.states[entityId];
-      let val = state ? parseFloat(state.state) || 0 : 0;
-      if (this.config[`consumer_${index}_unit_kw`] === true) val *= 1000;
+      let val = this._readPower(entityId, this.config[`consumer_${index}_unit_kw`] === true);
       if (this.config[`invert_consumer_${index}`]) val *= -1;
       if (this.config[`consumer_${index}_standby`] === true) {
         const threshold = this.config[`consumer_${index}_standby_threshold`] || 0;
@@ -838,7 +990,7 @@ console.log(
         soc: entities.battery_soc || "",
         unit_kw: this.config.battery_unit_kw === true,
         invert: this.config.invert_battery === true,
-        label: this.config.battery_label || "",
+        label: "", // battery_label names the whole bubble; the segment tooltip uses the entity name
       });
       if (Array.isArray(entities.batteries_extra)) {
         entities.batteries_extra.forEach(b => {
@@ -869,14 +1021,13 @@ console.log(
       let totalCharge = 0, totalDischarge = 0, socSum = 0, socCount = 0;
       const perBattery = [];
       list.forEach(b => {
-        const factor = b.unit_kw ? 1000 : 1;
-        let signed = b.power ? getVal(b.power) * factor : 0;
+        let signed = b.power ? this._readPower(b.power, b.unit_kw) : 0;
         if (b.invert) signed *= -1;
         const hasCharge = !!b.charge;
         const hasDischarge = !!b.discharge;
         // Separate charge/discharge sensors are taken as-is in W (matches the legacy behaviour)
-        const charge = hasCharge ? Math.abs(getVal(b.charge)) : (signed > 0 ? signed : 0);
-        const discharge = hasDischarge ? Math.abs(getVal(b.discharge)) : (signed < 0 ? Math.abs(signed) : 0);
+        const charge = hasCharge ? Math.abs(this._readPower(b.charge)) : (signed > 0 ? signed : 0);
+        const discharge = hasDischarge ? Math.abs(this._readPower(b.discharge)) : (signed < 0 ? Math.abs(signed) : 0);
         totalCharge += charge;
         totalDischarge += discharge;
         let soc = null;
@@ -903,6 +1054,69 @@ console.log(
         net: totalCharge - totalDischarge,
         perBattery,
       };
+    }
+
+    // Tooltip text for one battery segment: name, state of charge and current power.
+    _batterySegmentTitle(b, idx) {
+      if (!b) return '';
+      const ent = b.powerEntity && this.hass && this.hass.states[b.powerEntity];
+      const name = b.label || (ent && ent.attributes && ent.attributes.friendly_name) || `${this._localize('card.label_battery')} ${idx + 1}`;
+      const parts = [name];
+      if (b.hasSoc && b.soc !== null) parts.push(Math.round(b.soc) + '%');
+      if (b.charge > 0) parts.push('+' + this._formatPower(b.charge));
+      else if (b.discharge > 0) parts.push('−' + this._formatPower(b.discharge));
+      return parts.join(' · ');
+    }
+
+    // Annular sector (angles clockwise from top) used as invisible click area of one battery segment.
+    _sectorPath(a1, a2, rOuter, rInner) {
+      const pt = (a, r) => { const rad = (a - 90) * Math.PI / 180; return [(50 + r * Math.cos(rad)).toFixed(2), (50 + r * Math.sin(rad)).toFixed(2)]; };
+      const large = (a2 - a1) > 180 ? 1 : 0;
+      const [x1, y1] = pt(a1, rOuter), [x2, y2] = pt(a2, rOuter);
+      if (rInner <= 0) return `M 50 50 L ${x1} ${y1} A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2} Z`;
+      const [x3, y3] = pt(a2, rInner), [x4, y4] = pt(a1, rInner);
+      return `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4} Z`;
+    }
+
+    // Distance from the centre (50/50) to a rounded square (half size `half`, corner radius `rad`)
+    // along the direction `ang` (degrees clockwise from top).
+    _roundedRectRadius(ang, half, rad) {
+      const a = ang * Math.PI / 180;
+      const dx = Math.sin(a), dy = -Math.cos(a);
+      const t = half / Math.max(Math.abs(dx), Math.abs(dy));
+      const inner = half - rad;
+      if (Math.abs(dx * t) <= inner || Math.abs(dy * t) <= inner) return t;
+      const qx = Math.sign(dx) * inner, qy = Math.sign(dy) * inner;
+      const dq = dx * qx + dy * qy;
+      return dq + Math.sqrt(Math.max(0, dq * dq - (qx * qx + qy * qy) + rad * rad));
+    }
+
+    // Sector of a rounded square (box mode): outer edge follows the box, optional rounded-square hole.
+    _boxSectorPath(a1, a2, outer, inner) {
+      const pt = (ang, half, rad) => {
+        const r = this._roundedRectRadius(ang, half, rad), a = (ang - 90) * Math.PI / 180;
+        return `${(50 + r * Math.cos(a)).toFixed(2)} ${(50 + r * Math.sin(a)).toFixed(2)}`;
+      };
+      const steps = Math.max(2, Math.ceil((a2 - a1) / 3));
+      const out = [];
+      for (let k = 0; k <= steps; k++) out.push(pt(a1 + (a2 - a1) * k / steps, outer.half, outer.rad));
+      if (!inner) return `M 50 50 L ${out.join(' L ')} Z`;
+      const back = [];
+      for (let k = steps; k >= 0; k--) back.push(pt(a1 + (a2 - a1) * k / steps, inner.half, inner.rad));
+      return `M ${out.join(' L ')} L ${back.join(' L ')} Z`;
+    }
+
+    // Four fixed hit-area slots (inline SVG, see the namespace note below).
+    // `box` = { outer: {half, rad}, inner: {half, rad} | null } switches to the rounded-box shape.
+    _batteryHits(agg, spans, rInner, box = null) {
+      const hits = [];
+      for (let i = 0; i < 4; i++) {
+        const span = spans[i]; const b = agg.perBattery[i];
+        const d = !span ? '' : box ? this._boxSectorPath(span[0], span[1], box.outer, box.inner) : this._sectorPath(span[0], span[1], 50, rInner);
+        if (span && b) hits.push({ d, ent: b.powerEntity || '', title: this._batterySegmentTitle(b, i), show: 'inline' });
+        else hits.push({ d: '', ent: '', title: '', show: 'none' });
+      }
+      return hits;
     }
 
     // Ring gauge: one SoC arc per battery (max 4). Follows the node shape — a circle by default,
@@ -961,8 +1175,17 @@ console.log(
           seg.push({ trackD: useBoxes ? boxPath : "", fillD: useBoxes ? boxPath : "", trackStyle: disp(false), fillStyle: disp(false) });
         }
       }
+      const ringSpans = [];
+      for (let i = 0; i < n; i++) ringSpans.push([i * segSpan, (i + 1) * segSpan]);
+      // box mode: the ring svg covers the border box (90px = 100 units, 16px radius = 17.8 units);
+      // the inner rounded square keeps the centre (icon/value) on the default battery tap
+      const h = this._batteryHits(agg, ringSpans, 30, useBoxes ? { outer: { half: 50, rad: 17.8 }, inner: { half: 26, rad: 12 } } : null);
       return html`
         <svg class="batt-ring-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <path class="batt-hit" d="${h[0].d}" style="display:${h[0].show}" data-node="battery" data-entity="${h[0].ent}"><title>${h[0].title}</title></path>
+          <path class="batt-hit" d="${h[1].d}" style="display:${h[1].show}" data-node="battery" data-entity="${h[1].ent}"><title>${h[1].title}</title></path>
+          <path class="batt-hit" d="${h[2].d}" style="display:${h[2].show}" data-node="battery" data-entity="${h[2].ent}"><title>${h[2].title}</title></path>
+          <path class="batt-hit" d="${h[3].d}" style="display:${h[3].show}" data-node="battery" data-entity="${h[3].ent}"><title>${h[3].title}</title></path>
           <path class="batt-ring-track" d="${seg[0].trackD}" pathLength="360" style="${seg[0].trackStyle}"></path>
           <path class="batt-ring-track" d="${seg[1].trackD}" pathLength="360" style="${seg[1].trackStyle}"></path>
           <path class="batt-ring-track" d="${seg[2].trackD}" pathLength="360" style="${seg[2].trackStyle}"></path>
@@ -978,7 +1201,7 @@ console.log(
     // two halves, 3 = two top quarters + bottom half, 4 = four quarters. Each sector shows only that
     // battery's SoC% (coloured by its charge level, red when low); the center hub shows the combined
     // average SoC, larger. All SVG children are inline (see the namespace note on the ring above).
-    _renderBatteryQuarters(agg) {
+    _renderBatteryQuarters(agg, useBoxes = false) {
       const R = 46;
       const n = Math.min(4, Math.max(1, agg.count));
       let layout;
@@ -1011,8 +1234,19 @@ console.log(
       }
       const c0 = cell[0], c1 = cell[1], c2 = cell[2], c3 = cell[3];
       const avg = Math.round(agg.avgSoc);
+      // Sector angles (clockwise from top) matching the layouts above
+      const pieSpans = n <= 1 ? [[0, 359.99]]
+        : n === 2 ? [[-90, 90], [90, 270]]
+        : n === 3 ? [[-90, 0], [0, 90], [90, 270]]
+        : [[-90, 0], [0, 90], [180, 270], [90, 180]];
+      // box mode: the pie svg covers the padding box (86px = 100 units, 14px inner radius = 16.3 units)
+      const h = this._batteryHits(agg, pieSpans, 0, useBoxes ? { outer: { half: 50, rad: 16.3 }, inner: null } : null);
       return html`
         <svg class="batt-quarters-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+          <path class="batt-hit" d="${h[0].d}" style="display:${h[0].show}" data-node="battery" data-entity="${h[0].ent}"><title>${h[0].title}</title></path>
+          <path class="batt-hit" d="${h[1].d}" style="display:${h[1].show}" data-node="battery" data-entity="${h[1].ent}"><title>${h[1].title}</title></path>
+          <path class="batt-hit" d="${h[2].d}" style="display:${h[2].show}" data-node="battery" data-entity="${h[2].ent}"><title>${h[2].title}</title></path>
+          <path class="batt-hit" d="${h[3].d}" style="display:${h[3].show}" data-node="battery" data-entity="${h[3].ent}"><title>${h[3].title}</title></path>
           <line class="bq-divider" x1="50" y1="50" x2="${div[0].x}" y2="${div[0].y}" style="${disp(div[0].show)}"></line>
           <line class="bq-divider" x1="50" y1="50" x2="${div[1].x}" y2="${div[1].y}" style="${disp(div[1].show)}"></line>
           <line class="bq-divider" x1="50" y1="50" x2="${div[2].x}" y2="${div[2].y}" style="${disp(div[2].show)}"></line>
@@ -1021,7 +1255,7 @@ console.log(
           <text class="bq-soc" x="${c1.x}" y="${c1.y}" text-anchor="middle" style="${disp(c1.show)}; fill:${c1.col}">${c1.text}</text>
           <text class="bq-soc" x="${c2.x}" y="${c2.y}" text-anchor="middle" style="${disp(c2.show)}; fill:${c2.col}">${c2.text}</text>
           <text class="bq-soc" x="${c3.x}" y="${c3.y}" text-anchor="middle" style="${disp(c3.show)}; fill:${c3.col}">${c3.text}</text>
-          <circle class="bq-hub-bg" cx="50" cy="50" r="20"></circle>
+          <circle class="bq-hub-bg" cx="50" cy="50" r="20"><title>${this._localize('card.label_total_soc_avg')}: ${avg}%</title></circle>
           <text class="bq-hub-soc" x="50" y="55" text-anchor="middle">${avg}%</text>
         </svg>`;
     }
@@ -1085,15 +1319,36 @@ console.log(
       `;
     }
 
+    // Formats the state of a secondary/tertiary sensor for display (power in W/kW, energy keeps its unit).
+    _secondaryText(entity) {
+      if (!entity || !this.hass) return '';
+      const state = this.hass.states[entity];
+      if (!state) return '';
+      const val = parseFloat(state.state);
+      const unit = (state.attributes && state.attributes.unit_of_measurement) || '';
+      if (isNaN(val)) return state.state + (unit ? ' ' + unit : '');
+      if (unit === 'W') return this._formatPower(val);
+      if (unit === 'Wh') {
+        // Energy keeps its own unit instead of being shown as power (W / kW)
+        return Math.abs(val) >= 1000 ? (val / 1000).toFixed(1) + ' kWh' : Math.round(val) + ' Wh';
+      }
+      if (unit === 'kWh' || unit === 'kW') return val.toFixed(1) + ' ' + unit;
+      return val.toFixed(1) + (unit ? ' ' + unit : '');
+    }
+
+    // mdi battery icon matching the state of charge (10 % steps), optionally the charging variant
+    _batteryIcon(soc, charging) {
+      if (soc === null || soc === undefined || isNaN(soc)) return charging ? 'mdi:battery-charging-high' : 'mdi:battery-high';
+      const step = Math.min(100, Math.max(0, Math.round(soc / 10) * 10));
+      if (charging) return step >= 100 ? 'mdi:battery-charging-100' : step <= 0 ? 'mdi:battery-charging-outline' : `mdi:battery-charging-${step}`;
+      return step >= 100 ? 'mdi:battery' : step <= 0 ? 'mdi:battery-outline' : `mdi:battery-${step}`;
+    }
+
     // --- RENDER COMPACT VIEW ---
     _renderCompactView(entities) {
       // 1. Get Values
-      const getVal = (entity) => {
-        const state = this.hass.states[entity];
-        return state ? parseFloat(state.state) || 0 : 0;
-      };
       const getValUnit = (entity, unitKw) => {
-        return getVal(entity) * (unitKw ? 1000 : 1);
+        return this._readPower(entity, unitKw);
       };
 
       const solar = Math.max(0, this._getSolarTotal(entities));
@@ -1147,7 +1402,7 @@ console.log(
       // Aggregate charge/discharge across all configured batteries (single battery = unchanged);
       // energy moved from one battery into another is taken out of both sides.
       const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
-      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(getVal(entities.grid_to_battery)) : null;
+      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(this._readPower(entities.grid_to_battery)) : null;
       const batteryTransfer = this._getBatteryTransfer(battAgg, solar, gridImport, gridExport, gridToBattSensorVal);
       this._batteryTransfer = batteryTransfer;
       const batteryCharge = battAgg.totalCharge - batteryTransfer;
@@ -1246,12 +1501,36 @@ console.log(
       // Icons either sit inside the bracket (default) or centered on the bracket line, which is
       // then cut open around them. Bracket geometry: top line at y=4, bottom line at y=20, icon box 20px.
       const iconsInBracket = this.config.compact_icons_in_bracket === true;
+      const modern = this.config.compact_modern === true;
       const topIconTop = iconsInBracket ? '-6px' : '4px';
       const bottomIconTop = iconsInBracket ? '10px' : '-3px';
-      // 20px icon plus 4px breathing room on either side; the bracket needs room left for its side legs
-      const iconGapPx = 28;
-      const minIconWidth = iconsInBracket ? 44 : 20;
-      const bracketGap = (width) => (iconsInBracket && width > minIconWidth) ? iconGapPx : 0;
+      // 20px icon plus 4px breathing room on either side; the bracket needs room left for its side legs.
+      // In the modern style the icon sits in a pill only while it is placed on the bracket line (the pill
+      // then fills the gap in the line). Inside the bracket it would touch line and bar, so only the icon
+      // is drawn there. The pill needs a little more room than the bare icon.
+      const pillOnLine = modern && iconsInBracket;
+      const iconGapPx = pillOnLine ? 34 : 28;
+      const minIconWidth = iconsInBracket ? (pillOnLine ? 50 : 44) : 20;
+
+      // Battery state of charge (average of all batteries with an SoC sensor): shown as a percentage next
+      // to the battery icon and, unless a custom battery icon is set, as a matching battery icon.
+      const showSoc = this.config.compact_show_soc === true && battAgg.socCount > 0;
+      const socValue = showSoc ? battAgg.avgSoc : null;
+      const socText = showSoc ? `${Math.round(battAgg.avgSoc)}%` : '';
+      const socGapPx = 34; // extra room next to the icon for the percentage text
+      // The percentage only appears where the segment is wide enough to hold icon and text
+      const badgeFor = (badge, width) => (badge && width > minIconWidth + socGapPx) ? badge : '';
+      const bracketGap = (width, extra = 0) => (iconsInBracket && width > minIconWidth + extra) ? iconGapPx + extra : 0;
+
+      // A detail row only appears if its value is worth at least 1 W. Tiny residues (e.g. a heater
+      // hovering at 0.3 W) would otherwise be listed as "0 W".
+      const listed = (v) => v >= 0.5;
+
+      // Secondary (and tertiary) sensors of a node, shown next to its label in the details list
+      const secondary = (key) => [entities[`secondary_${key}`], entities[`tertiary_${key}`]]
+        .map(e => this._secondaryText(e)).filter(t => t !== '').join(' / ');
+      // Modern style uses one neutral label color; an explicitly picked secondary color still wins
+      const labelColor = (secColor, cfgKey) => (modern && !this.config[cfgKey]) ? '' : `color: ${secColor};`;
 
       // Optional bar mode: show how energy is actually used (self consumption) instead of raw sources
       const selfUseBar = this.config.compact_bar_selfuse === true;
@@ -1264,7 +1543,9 @@ console.log(
       const measuredWidth = (this._cardWidth && this._cardWidth > 0)
         ? this._cardWidth
         : (this.offsetWidth || this.getBoundingClientRect().width || 400);
-      const fullWidth = Math.max(0, measuredWidth - 40);
+      // Usable bar width = card width minus the container's side padding (20px classic, 16px modern),
+      // so the brackets end exactly where the bar ends.
+      const fullWidth = Math.max(0, measuredWidth - (modern ? 32 : 40));
 
       if (totalFlux <= threshold) {
         return html`<ha-card><div class="compact-container">Waiting for data...</div></ha-card>`;
@@ -1292,6 +1573,7 @@ console.log(
           widthPx: width,
           startPx: currentX,
           type,
+          node: type === 'export' ? 'grid' : type,
           label,
           entityId
         });
@@ -1314,7 +1596,7 @@ console.log(
       const bracketMeta = (type) => {
         if (type === 'solar') return { icon: this.config.solar_icon || 'mdi:weather-sunny', color: colSolar.icon, pipe: colSolar.pipe };
         if (type === 'grid') return { icon: this.config.grid_icon || 'mdi:transmission-tower', color: colGrid.icon, pipe: colGrid.pipe };
-        if (type === 'battery') return { icon: this.config.battery_icon || 'mdi:battery-high', color: battDischarge.icon, pipe: battDischarge.pipe };
+        if (type === 'battery') return { icon: this.config.battery_icon || (showSoc ? this._batteryIcon(socValue, false) : 'mdi:battery-high'), color: battDischarge.icon, pipe: battDischarge.pipe, badge: socText };
         if (type === 'export') return { icon: this.config.export_icon || 'mdi:arrow-right-box', color: colExport.icon, pipe: colExport.pipe };
         return { icon: '', color: '', pipe: '' };
       };
@@ -1329,10 +1611,11 @@ console.log(
           const width = layoutWidth(val, topX);
           if (width <= 0) return;
           const meta = bracketMeta(type);
+          const badge = badgeFor(meta.badge, width);
           topBrackets.push({
-            path: this._createBracketPath(topX, width, 'down', bracketGap(width)),
+            path: this._createBracketPath(topX, width, 'down', bracketGap(width, badge ? socGapPx : 0)),
             width, center: topX + (width / 2),
-            icon: meta.icon, iconColor: meta.color, pipeColor: meta.pipe, val, entityId
+            icon: meta.icon, iconColor: meta.color, pipeColor: meta.pipe, badge, val, entityId, node: type
           });
           topX += width;
         };
@@ -1342,10 +1625,11 @@ console.log(
       } else {
         topBrackets = barSegments.map(s => {
           const meta = bracketMeta(s.type);
+          const badge = badgeFor(meta.badge, s.widthPx);
           return {
-            path: this._createBracketPath(s.startPx, s.widthPx, 'down', bracketGap(s.widthPx)),
+            path: this._createBracketPath(s.startPx, s.widthPx, 'down', bracketGap(s.widthPx, badge ? socGapPx : 0)),
             width: s.widthPx, center: s.startPx + (s.widthPx / 2),
-            icon: meta.icon, iconColor: meta.color, pipeColor: meta.pipe, val: s.val, entityId: s.entityId
+            icon: meta.icon, iconColor: meta.color, pipeColor: meta.pipe, badge, val: s.val, entityId: s.entityId, node: s.node
           };
         });
       }
@@ -1354,7 +1638,7 @@ console.log(
       const bottomBrackets = [];
       let bottomX = 0;
 
-      const addBottomBracket = (val, type, entityId = null, iconOverride = null, iconColorOverride = null, pipeColorOverride = null) => {
+      const addBottomBracket = (val, type, entityId = null, iconOverride = null, iconColorOverride = null, pipeColorOverride = null, nodeKey = null) => {
         if (val <= threshold || bottomX >= fullWidth) return;
         const width = layoutWidth(val, bottomX);
         if (width <= 0) return;
@@ -1362,14 +1646,19 @@ console.log(
         let icon = '';
         let iconColor = '';
         let pipeColor = '';
+        let badge = '';
 
         if (type === 'house') { icon = this.config.house_icon || 'mdi:home'; iconColor = colHouse.icon; pipeColor = colHouse.pipe; }
         if (type === 'export') { icon = this.config.export_icon || 'mdi:arrow-right-box'; iconColor = colExport.icon; pipeColor = colExport.pipe; }
-        if (type === 'battery') { icon = this.config.battery_icon || 'mdi:battery-charging-high'; iconColor = battCharge.icon; pipeColor = battCharge.pipe; }
+        if (type === 'battery') {
+          icon = this.config.battery_icon || (showSoc ? this._batteryIcon(socValue, true) : 'mdi:battery-charging-high');
+          iconColor = battCharge.icon; pipeColor = battCharge.pipe;
+          badge = badgeFor(socText, width);
+        }
         if (iconOverride) { icon = iconOverride; }
         if (iconColorOverride) { iconColor = iconColorOverride; pipeColor = pipeColorOverride || iconColorOverride; }
 
-        const path = this._createBracketPath(bottomX, width, 'up', bracketGap(width));
+        const path = this._createBracketPath(bottomX, width, 'up', bracketGap(width, badge ? socGapPx : 0));
         bottomBrackets.push({
           path,
           width: width,
@@ -1377,14 +1666,16 @@ console.log(
           icon,
           iconColor,
           pipeColor,
+          badge,
           val,
-          entityId
+          entityId,
+          node: nodeKey || (type === 'export' ? 'grid' : type)
         });
         bottomX += width;
       };
 
       addBottomBracket(destHouse, 'house', entities.house);
-      consumers.forEach(c => addBottomBracket(c.power, 'consumer', c.entityId, c.icon, c.iconColor, c.pipeColor));
+      consumers.forEach(c => addBottomBracket(c.power, 'consumer', c.entityId, c.icon, c.iconColor, c.pipeColor, `consumer_${c.idx}`));
       if (selfUseBar) {
         // Charge sits next to the consumption it belongs to, export closes the row
         addBottomBracket(batteryCharge, 'battery', entities.battery);
@@ -1411,8 +1702,8 @@ console.log(
       const iconGlow = (color) => compactGlow ? `filter: drop-shadow(0 0 5px ${color});` : '';
 
       return html`
-        <ha-card>
-            <div class="compact-container">
+        <ha-card @click=${this._onActionClick} @pointerdown=${this._onActionDown} @pointerup=${this._onActionUp} @pointercancel=${this._onActionUp} @pointerleave=${this._onActionUp} @contextmenu=${this._onActionContext}>
+            <div class="compact-container ${modern ? (iconsInBracket ? 'modern icons-on-line' : 'modern') : ''}">
                 <!-- TOP BRACKETS -->
                 <div class="compact-bracket">
                     <svg class="bracket-svg" width="100%" height="100%">
@@ -1420,10 +1711,11 @@ console.log(
                     </svg>
                     ${topBrackets.map(b => b.width > minIconWidth ? html`
                     <div class="compact-icon-wrapper"
-                         style="left: ${b.center}px; transform: translateX(-50%); top: ${topIconTop}; cursor: ${b.entityId ? 'pointer' : 'default'};"
+                         style="left: ${b.center}px; transform: translateX(-50%); top: ${topIconTop}; cursor: ${this._isActionable(b.node, b.entityId) ? 'pointer' : 'default'};"
                          title="${this._formatPower(b.val)}"
-                         @click=${() => b.entityId && this._handleClick(b.entityId)}>
+                         data-node="${b.node}" data-entity="${b.entityId || ''}">
                         <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor}; ${iconGlow(b.iconColor)}"></ha-icon>
+                        ${b.badge ? html`<span class="compact-icon-badge" style="color: ${b.iconColor};">${b.badge}</span>` : ''}
                     </div>` : '')}
                 </div>
 
@@ -1438,9 +1730,9 @@ console.log(
                           : 'black';
                         return html`
                         <div class="bar-segment"
-                             style="width: ${s.widthPct}%; background: ${s.color}; color: ${textColor}; cursor: ${s.entityId ? 'pointer' : 'default'};"
+                             style="width: ${s.widthPct}%; background: ${s.color}; color: ${textColor}; cursor: ${this._isActionable(s.node, s.entityId) ? 'pointer' : 'default'};"
                              title="${this._formatPower(s.val)}"
-                             @click=${() => s.entityId && this._handleClick(s.entityId)}>
+                             data-node="${s.node}" data-entity="${s.entityId || ''}">
                             ${s.widthPx > 35 ? this._formatPower(s.val) : ''}
                         </div>
                     `})}
@@ -1453,10 +1745,11 @@ console.log(
                     </svg>
                     ${bottomBrackets.map(b => b.width > minIconWidth ? html`
                     <div class="compact-icon-wrapper"
-                         style="left: ${b.center}px; transform: translateX(-50%); top: ${bottomIconTop}; cursor: ${b.entityId ? 'pointer' : 'default'};"
+                         style="left: ${b.center}px; transform: translateX(-50%); top: ${bottomIconTop}; cursor: ${this._isActionable(b.node, b.entityId) ? 'pointer' : 'default'};"
                          title="${this._formatPower(b.val)}"
-                         @click=${() => b.entityId && this._handleClick(b.entityId)}>
+                         data-node="${b.node}" data-entity="${b.entityId || ''}">
                         <ha-icon icon="${b.icon}" class="compact-icon" style="color: ${b.iconColor}; ${iconGlow(b.iconColor)}"></ha-icon>
+                        ${b.badge ? html`<span class="compact-icon-badge" style="color: ${b.iconColor};">${b.badge}</span>` : ''}
                     </div>` : '')}
                 </div>
 
@@ -1466,50 +1759,56 @@ console.log(
                     <!-- IN COLUMN -->
                     <div class="compact-details-column">
                         <div class="compact-details-header">${this._localize('card.label_in')}</div>
-                        ${solar > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => this._getPrimarySolarEntity(entities) && this._handleClick(this._getPrimarySolarEntity(entities))} style="cursor: ${this._getPrimarySolarEntity(entities) ? 'pointer' : 'default'};">
+                        ${listed(solar) ? html`
+                        <div class="compact-detail-item" data-node="solar" data-entity="${(this._getPrimarySolarEntity(entities)) || ''}" style="cursor: ${this._isActionable('solar', this._getPrimarySolarEntity(entities)) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.solar_icon || 'mdi:weather-sunny'}" style="color: ${colSolar.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${colSolar.secondary};">${labelSolar}</span>
+                            <span class="compact-detail-label" style="${labelColor(colSolar.secondary, 'color_secondary_solar')}">${labelSolar}</span>
+                            ${secondary('solar') ? html`<span class="compact-detail-secondary">${secondary('solar')}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${colSolar.text};">${this._formatPower(solar)}</span>
                         </div>` : ''}
-                        ${gridImport > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid) && this._handleClick(entities.grid_combined || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
+                        ${listed(gridImport) ? html`
+                        <div class="compact-detail-item" data-node="grid" data-entity="${(entities.grid_combined || entities.grid) || ''}" style="cursor: ${this._isActionable('grid', entities.grid_combined || entities.grid) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.grid_icon || 'mdi:transmission-tower'}" style="color: ${colGrid.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${colGrid.secondary};">${labelGrid}</span>
+                            <span class="compact-detail-label" style="${labelColor(colGrid.secondary, 'color_secondary_grid')}">${labelGrid}</span>
+                            ${secondary('grid') ? html`<span class="compact-detail-secondary">${secondary('grid')}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${colGrid.text};">${this._formatPower(gridImport)}</span>
                         </div>` : ''}
-                        ${batteryDischarge > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => entities.battery && this._handleClick(entities.battery)} style="cursor: ${entities.battery ? 'pointer' : 'default'};">
+                        ${listed(batteryDischarge) ? html`
+                        <div class="compact-detail-item" data-node="battery" data-entity="${(entities.battery) || ''}" style="cursor: ${this._isActionable('battery', entities.battery) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.battery_icon || 'mdi:battery-arrow-down'}" style="color: ${battDischarge.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${battDischarge.secondary};">${labelBattery}</span>
+                            <span class="compact-detail-label" style="${labelColor(battDischarge.secondary, 'color_secondary_battery_discharge')}">${labelBattery}</span>
+                            ${(secondary('battery') || socText) ? html`<span class="compact-detail-secondary">${secondary('battery') || socText}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${battDischarge.text};">${this._formatPower(batteryDischarge)}</span>
                         </div>` : ''}
                     </div>
                     <!-- OUT COLUMN -->
                     <div class="compact-details-column">
                         <div class="compact-details-header">${this._localize('card.label_out')}</div>
-                        ${destHouse > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => entities.house && this._handleClick(entities.house)} style="cursor: ${entities.house ? 'pointer' : 'default'};">
+                        ${listed(destHouse) ? html`
+                        <div class="compact-detail-item" data-node="house" data-entity="${(entities.house) || ''}" style="cursor: ${this._isActionable('house', entities.house) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.house_icon || 'mdi:home'}" style="color: ${colHouse.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${colHouse.secondary};">${labelHouse}</span>
+                            <span class="compact-detail-label" style="${labelColor(colHouse.secondary, 'color_secondary_house')}">${labelHouse}</span>
+                            ${secondary('house') ? html`<span class="compact-detail-secondary">${secondary('house')}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${colHouse.text};">${this._formatPower(destHouse)}</span>
                         </div>` : ''}
-                        ${batteryCharge > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => entities.battery && this._handleClick(entities.battery)} style="cursor: ${entities.battery ? 'pointer' : 'default'};">
+                        ${listed(batteryCharge) ? html`
+                        <div class="compact-detail-item" data-node="battery" data-entity="${(entities.battery) || ''}" style="cursor: ${this._isActionable('battery', entities.battery) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.battery_icon || 'mdi:battery-arrow-up'}" style="color: ${battCharge.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${battCharge.secondary};">${labelBattery}</span>
+                            <span class="compact-detail-label" style="${labelColor(battCharge.secondary, 'color_secondary_battery_charge')}">${labelBattery}</span>
+                            ${(secondary('battery') || socText) ? html`<span class="compact-detail-secondary">${secondary('battery') || socText}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${battCharge.text};">${this._formatPower(batteryCharge)}</span>
                         </div>` : ''}
-                        ${consumers.filter(c => c.power > 0).map(c => html`
-                        <div class="compact-detail-item" @click=${() => c.entityId && this._handleClick(c.entityId)} style="cursor: ${c.entityId ? 'pointer' : 'default'};">
+                        ${consumers.filter(c => listed(c.power)).map(c => html`
+                        <div class="compact-detail-item" data-node="${'consumer_' + c.idx}" data-entity="${(c.entityId) || ''}" style="cursor: ${this._isActionable('consumer_' + c.idx, c.entityId) ? 'pointer' : 'default'};">
                             <ha-icon icon="${c.icon}" style="color: ${c.iconColor};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${c.secondaryColor};">${c.label}</span>
+                            <span class="compact-detail-label" style="${labelColor(c.secondaryColor, `color_secondary_consumer_${c.idx}`)}">${c.label}</span>
+                            ${secondary(`consumer_${c.idx}`) ? html`<span class="compact-detail-secondary">${secondary(`consumer_${c.idx}`)}</span>` : ''}
                             <span class="compact-detail-value" style="color: ${c.textColor};">${this._formatPower(c.power)}</span>
                         </div>`)}
-                        ${gridExport > 0 ? html`
-                        <div class="compact-detail-item" @click=${() => (entities.grid_combined || entities.grid_export || entities.grid) && this._handleClick(entities.grid_combined || entities.grid_export || entities.grid)} style="cursor: ${(entities.grid_combined || entities.grid_export || entities.grid) ? 'pointer' : 'default'};">
+                        ${listed(gridExport) ? html`
+                        <div class="compact-detail-item" data-node="grid" data-entity="${(entities.grid_combined || entities.grid_export || entities.grid) || ''}" style="cursor: ${this._isActionable('grid', entities.grid_combined || entities.grid_export || entities.grid) ? 'pointer' : 'default'};">
                             <ha-icon icon="${this.config.export_icon || 'mdi:arrow-right-box'}" style="color: ${colExport.icon};"></ha-icon>
-                            <span class="compact-detail-label" style="color: ${colExport.secondary};">${labelExport}</span>
+                            <span class="compact-detail-label" style="${labelColor(colExport.secondary, 'color_secondary_export')}">${labelExport}</span>
                             <span class="compact-detail-value" style="color: ${colExport.text};">${this._formatPower(gridExport)}</span>
                         </div>` : ''}
                     </div>
@@ -1570,25 +1869,7 @@ console.log(
       const labelHouseText = this.config.house_label || this._localize('card.label_house');
       // Secondary Sensor für Haus
       const hasSecondaryHouse = !!(entities.secondary_house && entities.secondary_house !== "");
-      const getSecondaryVal = (entity) => {
-        if (!entity) return '';
-        const state = this.hass.states[entity];
-        if (!state) return '';
-        const val = parseFloat(state.state);
-        if (isNaN(val)) return state.state + (state.attributes.unit_of_measurement ? ' ' + state.attributes.unit_of_measurement : '');
-        const unit = state.attributes.unit_of_measurement || '';
-        if (unit === 'W') {
-          return this._formatPower(val);
-        }
-        if (unit === 'Wh') {
-          // Energy keeps its own unit instead of being shown as power (W / kW)
-          return Math.abs(val) >= 1000 ? (val / 1000).toFixed(1) + ' kWh' : Math.round(val) + ' Wh';
-        }
-        if (unit === 'kWh' || unit === 'kW') {
-          return val.toFixed(1) + ' ' + unit;
-        }
-        return val.toFixed(1) + (unit ? ' ' + unit : '');
-      };
+      const getSecondaryVal = (entity) => this._secondaryText(entity);
 
       // Resolve secondary sensor color based on entity key
       const getSecondaryColor = (entityKey) => {
@@ -1638,12 +1919,8 @@ console.log(
       const labelC2 = this.config.consumer_2_label || this._localize('card.label_heater');
       const labelC3 = this.config.consumer_3_label || this._localize('card.label_pool');
 
-      const getVal = (entity) => {
-        const state = this.hass.states[entity];
-        return state ? parseFloat(state.state) || 0 : 0;
-      };
       const getValKw = (entity, isKw) => {
-        return getVal(entity) * (isKw ? 1000 : 1);
+        return this._readPower(entity, isKw);
       };
       // Consumers 1-5: raw value with optional inversion; negative = consumer feeds the house
       const getConsumerRaw = (idx) => this._getConsumerValue(entities[`consumer_${idx}`], idx);
@@ -1708,7 +1985,7 @@ console.log(
       // Aggregate charge/discharge across all configured batteries (single battery = unchanged);
       // energy moved from one battery into another is taken out of both sides.
       const hasGridToBattSensor = !!(entities.grid_to_battery && entities.grid_to_battery !== "");
-      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(getVal(entities.grid_to_battery)) : null;
+      const gridToBattSensorVal = hasGridToBattSensor ? Math.abs(this._readPower(entities.grid_to_battery)) : null;
       const batteryTransfer = this._getBatteryTransfer(battAgg, solarVal, gridImport, gridExport, gridToBattSensorVal);
       this._batteryTransfer = batteryTransfer;
       const batteryCharge = battAgg.totalCharge - batteryTransfer;
@@ -1766,7 +2043,7 @@ console.log(
       const donutTotal = house + houseAddTotal;
 
       // Use house entity for display if defined, otherwise use calculated value
-      const houseDisplay = (entities.house && entities.house !== "") ? getVal(entities.house) : houseCalc;
+      const houseDisplay = (entities.house && entities.house !== "") ? this._readPower(entities.house) : houseCalc;
 
       // Solar→Batt arc only visible when battery is actively charging and not via house.
       // In the diamond layout the arc is part of the ring, so keep it as inactive pipe when inactive pipes are shown.
@@ -2038,7 +2315,7 @@ console.log(
 
         return html`
             <div class="bubble ${shapeClass} ${cssClass} ${nodeClassStr} ${tintClass} ${glowClass}"
-                @click=${() => this._handleClick(entities[configKey])}>
+                data-node="${configKey}" data-entity="${entities[configKey] || ''}">
                 ${iconContent}
                 ${renderSecondaryOrLabel(label, true, secEntity, hasSecondary, `secondary_${configKey}`, entities[`tertiary_${configKey}`])}
                 <div class="value" style="${textStyle}">${this._formatPower(val)}</div>
@@ -2122,7 +2399,7 @@ console.log(
       const strokeWidthVal = showDashedLine ? 4 : 8;
 
       return html`
-      <ha-card style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
+      <ha-card @click=${this._onActionClick} @pointerdown=${this._onActionDown} @pointerup=${this._onActionUp} @pointercancel=${this._onActionUp} @pointerleave=${this._onActionUp} @contextmenu=${this._onActionContext} style="height: ${finalCardHeightPx}px; --flow-dasharray: ${dashArrayVal}; --flow-stroke-width: ${strokeWidthVal}px;">
         
         <div class="scale-wrapper" style="transform: scale(${scale}); margin-left: ${centerMarginLeft}px; ${isHorizontal ? `width: ${designWidth}px;` : ''}">
             
@@ -2178,7 +2455,7 @@ console.log(
 
                 ${showSolarBubble ? html`
                 <div class="bubble ${shapeClass} ${isSolarActive ? 'solar' : 'inactive'} ${nodeClass('solar')} ${tintClass} ${isSolarActive ? glowClass : ''}"
-                    @click=${() => this._handleClick(this._getPrimarySolarEntity(entities))}>
+                    data-node="solar" data-entity="${this._getPrimarySolarEntity(entities) || ''}">
                     ${renderMainIcon('solar', solarVal, iconSolar, solarColor)}
                     ${renderSecondaryOrLabel(labelSolarText, showLabelSolar, entities.secondary_solar, hasSecondarySolar, 'secondary_solar', null, preferLabelSolar)}
                     <div class="value" style="${isSolarActive ? (this.config.color_text_solar ? 'color: var(--text-solar-color);' : getColorStyle('--neon-yellow')) : `color: ${solarColor};`}">${this._formatPower(solarVal)}</div>
@@ -2187,7 +2464,7 @@ console.log(
                 ${showGridBubble ? html`
                 <div class="bubble ${shapeClass} ${isGridActive ? (isGridExporting ? 'grid exporting' : 'grid') : 'inactive'} ${nodeClass('grid')} ${showDonut && isGridActive ? 'donut' : ''} ${tintClass} ${isGridActive ? glowClass : ''}"
                     style="${showDonut && isGridActive ? `--grid-gradient: ${gridGradientVal};` : ''}"
-                    @click=${() => this._handleClick(entities.grid_combined || entities.grid)}>
+                    data-node="grid" data-entity="${entities.grid_combined || entities.grid || ''}">
                     ${renderMainIcon('grid', isGridExporting ? gridExport : gridImport, iconGrid, gridIconColor)}
                     ${renderSecondaryOrLabel(labelGridText, showLabelGrid, entities.secondary_grid, hasSecondaryGrid, 'secondary_grid', null, preferLabelGrid)}
                     <div class="value" style="color: ${gridTextColor};">
@@ -2198,9 +2475,9 @@ console.log(
                 
                 ${showBatteryBubble ? html`
                 <div class="bubble ${shapeClass} battery ${showBatteryRing ? 'ring' : ''} ${showBatteryQuarters ? 'quarters' : ''} ${nodeClass('battery')} ${tintClass} ${glowClass}"
-                    @click=${() => this._handleClick(batteryClickEntity)}>
+                    data-node="battery" data-entity="${batteryClickEntity || ''}">
                     ${showTransferWarning ? html`<ha-icon class="batt-transfer-warn" icon="mdi:alert-outline" title="${this._localize('card.battery_transfer')}: ${this._formatPower(batteryTransfer)}"></ha-icon>` : ''}
-                    ${showBatteryQuarters ? this._renderBatteryQuarters(battAgg) : html`
+                    ${showBatteryQuarters ? this._renderBatteryQuarters(battAgg, useBoxes) : html`
                     ${showBatteryRing ? this._renderBatteryRing(battAgg, showNeonGlow, useBoxes) : ''}
                     ${renderMainIcon('battery', battSoc, iconBattery)}
                     ${renderSecondaryOrLabel(labelBatteryText, showLabelBattery, entities.secondary_battery, hasSecondaryBattery, 'secondary_battery', null, preferLabelBattery)}
@@ -2210,7 +2487,7 @@ console.log(
                 
                 <div class="bubble ${shapeClass} house ${nodeClass('house')} ${showDonut ? 'donut' : ''} ${tintClass}"
                     style="${houseBubbleStyle}"
-                    @click=${() => this._handleClick(entities.house)}>
+                    data-node="house" data-entity="${entities.house || ''}">
                     ${renderMainIcon('house', 0, this.config.house_icon || null, this.config.color_icon_house ? 'var(--icon-house-color)' : houseDominantColor)}
                     ${renderSecondaryOrLabel(labelHouseText, showLabelHouse, entities.secondary_house, hasSecondaryHouse, 'secondary_house', entities.tertiary_house, preferLabelHouse)}
                     <div class="value" style="${houseTextStyle}">${this._formatPower(houseDisplay)}</div>

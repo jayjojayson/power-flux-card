@@ -1,6 +1,10 @@
 import lang_en from "./lang-en.js";
 import lang_de from "./lang-de.js";
 
+// Single place for the card version (console banner + editor footer).
+const CARD_VERSION = "v_3.1";
+export { CARD_VERSION };
+
 const editorTranslations = {
     "en": lang_en.editor,
     "de": lang_de.editor
@@ -31,7 +35,8 @@ class PowerFluxCardEditor extends LitElement {
             hass: {},
             _config: { state: true },
             _subView: { state: true }, // Controls which sub-page is open (null = main)
-            _openConsumer: { state: true } // Index of the expanded consumer group (null = all collapsed)
+            _openConsumer: { state: true }, // Index of the expanded consumer group (null = all collapsed)
+            _openActions: { state: true } // Node whose interactions section is expanded (null = all collapsed)
         };
     }
 
@@ -87,6 +92,9 @@ class PowerFluxCardEditor extends LitElement {
                 const currentEntities = newConfig.entities || {};
                 const newEntities = { ...currentEntities, [key]: value };
                 newConfig.entities = newEntities;
+            } else if (/_(tap|hold|double_tap)_action$/.test(key) && (value === "" || (typeof value === 'object' && !value.action))) {
+                // Cleared action: fall back to the default behaviour
+                delete newConfig[key];
             } else {
                 newConfig[key] = value;
 
@@ -324,6 +332,25 @@ class PowerFluxCardEditor extends LitElement {
       .switch-label {
         font-weight: bold;
       }
+      .kw-hint {
+        font-size: 0.8em;
+        color: var(--secondary-text-color);
+        margin: 0 0 8px;
+      }
+      .version-footer {
+        margin-top: 16px;
+        padding-top: 8px;
+        border-top: 1px solid var(--divider-color);
+        text-align: center;
+        font-size: 0.8em;
+      }
+      .version-footer a {
+        color: var(--secondary-text-color);
+        text-decoration: none;
+      }
+      .version-footer a:hover {
+        text-decoration: underline;
+      }
       .section-title {
         font-size: 1.1em;
         font-weight: bold;
@@ -347,6 +374,26 @@ class PowerFluxCardEditor extends LitElement {
         border-bottom: 1px solid var(--divider-color);
         margin-bottom: 8px;
       }
+      .actions-group {
+          margin-top: 14px;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          overflow: hidden;
+      }
+      .actions-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          cursor: pointer;
+          font-weight: 500;
+          user-select: none;
+      }
+      .actions-header ha-icon { --mdc-icon-size: 18px; color: var(--primary-color); }
+      .actions-header .actions-chevron { margin-left: auto; color: var(--secondary-text-color); }
+      .actions-group.open .actions-header { border-bottom: 1px solid var(--divider-color); }
+      .actions-body { padding: 10px 12px 12px; }
+      .actions-body ha-selector { margin-bottom: 12px; }
       .consumer-group.open {
         padding-bottom: 10px;
         background: rgba(var(--rgb-primary-text-color, 255, 255, 255), 0.03);
@@ -569,7 +616,8 @@ class PowerFluxCardEditor extends LitElement {
                 ? slider(`consumer_${idx}_pipe_threshold`, 'editor.consumer_pipe_threshold', 2000, 10)
                 : ''}
 
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 8px;">
+            ${this._needsKwSwitch([entities[`consumer_${idx}`]], cfg[`consumer_${idx}_unit_kw`] === true) ? html`
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; margin-bottom: 0;">
                 <span>${this._localize('editor.consumer_unit_kw')}</span>
                 <ha-switch
                     .checked=${cfg[`consumer_${idx}_unit_kw`] === true}
@@ -577,6 +625,7 @@ class PowerFluxCardEditor extends LitElement {
                     @change=${this._valueChanged}
                 ></ha-switch>
             </div>
+            <div class="kw-hint">${this._localize('editor.unit_kw_hint')}</div>` : ''}
 
             ${this._renderEntitySelector(entitySelectorSchema, entities[`secondary_consumer_${idx}`] || "", `secondary_consumer_${idx}`, this._localize('editor.secondary_sensor'))}
             ${this._renderEntitySelector(entitySelectorSchema, entities[`tertiary_consumer_${idx}`] || "", `tertiary_consumer_${idx}`, this._localize('editor.tertiary_sensor'))}
@@ -585,8 +634,44 @@ class PowerFluxCardEditor extends LitElement {
             </div>
 
             ${this._renderColorPickerQuint(`color_consumer_${idx}`, `color_pipe_consumer_${idx}`, `color_text_consumer_${idx}`, `color_icon_consumer_${idx}`, `color_secondary_consumer_${idx}`, defaultColor)}
+            ${this._renderActions(`consumer_${idx}`)}
             `}
         </div>`;
+    }
+
+    // Collapsible "Interactions" section (tap / hold / double tap) for one node, collapsed by default
+    _renderActions(node) {
+        const open = this._openActions === node;
+        const row = (kind, labelKey, defaultAction) => html`
+            <ha-selector
+                .hass=${this.hass}
+                .selector=${{ ui_action: { default_action: defaultAction } }}
+                .value=${this._config[`${node}_${kind}_action`]}
+                .configValue=${`${node}_${kind}_action`}
+                .label=${this._localize(labelKey)}
+                @value-changed=${this._valueChanged}
+            ></ha-selector>`;
+        return html`
+        <div class="actions-group ${open ? 'open' : ''}">
+            <div class="actions-header" @click=${() => this._toggleActions(node)}>
+                <ha-icon icon="mdi:gesture-tap"></ha-icon>
+                <span>${this._localize('editor.interactions')}</span>
+                <ha-icon class="actions-chevron" icon="${open ? 'mdi:chevron-up' : 'mdi:chevron-down'}"></ha-icon>
+            </div>
+            ${open ? html`
+            <div class="actions-body">
+                ${row('tap', 'editor.tap_action', 'more-info')}
+                ${row('hold', 'editor.hold_action', 'none')}
+                ${row('double_tap', 'editor.double_tap_action', 'none')}
+                <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px;">
+                    ${this._localize('editor.interactions_hint')}
+                </div>
+            </div>` : ''}
+        </div>`;
+    }
+
+    _toggleActions(node) {
+        this._openActions = this._openActions === node ? null : node;
     }
 
     _toggleConsumer(idx) {
@@ -677,6 +762,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
         </div>
+        ${this._needsKwSwitch([entities.solar, ...(Array.isArray(entities.solar_extra) ? entities.solar_extra : [])], this._config.solar_unit_kw === true) ? html`
         <div class="switch-row">
             <ha-switch
                 .checked=${this._config.solar_unit_kw === true}
@@ -685,6 +771,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.solar_unit_kw')}</div>
         </div>
+        <div class="kw-hint">${this._localize('editor.unit_kw_hint')}</div>` : ''}
 
         <div class="switch-row">
             <ha-switch
@@ -694,6 +781,8 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.flow_rate_title')}</div>
         </div>
+
+        ${this._renderActions('solar')}
       `;
     }
 
@@ -772,6 +861,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
         </div>
+        ${this._needsKwSwitch([entities.grid, entities.grid_export, entities.grid_combined], this._config.grid_unit_kw === true) ? html`
         <div class="switch-row">
             <ha-switch
                 .checked=${this._config.grid_unit_kw === true}
@@ -780,6 +870,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.grid_unit_kw')}</div>
         </div>
+        <div class="kw-hint">${this._localize('editor.unit_kw_hint')}</div>` : ''}
 
         <div class="switch-row">
             <ha-switch
@@ -813,6 +904,8 @@ class PowerFluxCardEditor extends LitElement {
         <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: -4px; margin-bottom: 4px;">
             ${this._localize('editor.grid_threshold_hint')}
         </div>
+
+        ${this._renderActions('grid')}
       `;
     }
 
@@ -846,6 +939,10 @@ class PowerFluxCardEditor extends LitElement {
             .label=${this._localize('editor.label') + " (Optional)"}
             @value-changed=${this._valueChanged}
         ></ha-selector>
+        ${(entities.batteries_extra || []).length > 0 ? html`
+        <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 8px;">
+            ${this._localize('editor.battery_label_group_hint')}
+        </div>` : ''}
 
         <ha-selector
             .hass=${this.hass}
@@ -920,6 +1017,7 @@ class PowerFluxCardEditor extends LitElement {
                 .label=${this._localize('editor.battery_soc_label')}
                 @value-changed=${(ev) => this._batteryExtraChanged(i, 'soc', ev)}
             ></ha-selector>
+            ${this._needsKwSwitch(b ? [b.power, b.charge, b.discharge] : [], !!(b && b.unit_kw)) ? html`
             <div class="switch-row">
                 <ha-switch
                     .checked=${!!(b && b.unit_kw)}
@@ -927,6 +1025,7 @@ class PowerFluxCardEditor extends LitElement {
                 ></ha-switch>
                 <div class="switch-label">${this._localize('editor.battery_unit_kw')}</div>
             </div>
+            <div class="kw-hint">${this._localize('editor.unit_kw_hint')}</div>` : ''}
             <div class="switch-row">
                 <ha-switch
                     .checked=${!!(b && b.invert)}
@@ -989,6 +1088,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.label_toggle')}</div>
         </div>
+        ${this._needsKwSwitch([entities.battery, entities.battery_charge, entities.battery_discharge], this._config.battery_unit_kw === true) ? html`
         <div class="switch-row">
             <ha-switch
                 .checked=${this._config.battery_unit_kw === true}
@@ -997,6 +1097,7 @@ class PowerFluxCardEditor extends LitElement {
             ></ha-switch>
             <div class="switch-label">${this._localize('editor.battery_unit_kw')}</div>
         </div>
+        <div class="kw-hint">${this._localize('editor.unit_kw_hint')}</div>` : ''}
 
         <div class="switch-row">
             <ha-switch
@@ -1034,6 +1135,8 @@ class PowerFluxCardEditor extends LitElement {
                 ></ha-switch>
                 <div class="switch-label">${this._localize('editor.battery_show_power')}</div>
             </div>
+
+        ${this._renderActions('battery')}
       `;
     }
 
@@ -1077,6 +1180,7 @@ class PowerFluxCardEditor extends LitElement {
                 ${this._localize('editor.tertiary_sensor_hint')}
             </div>
             ${this._renderColorPickerQuint('color_house', null, 'color_text_house', 'color_icon_house', 'color_secondary_house', '#ff0080')}
+            ${this._renderActions('house')}
         </div>
 
         ${[
@@ -1087,6 +1191,20 @@ class PowerFluxCardEditor extends LitElement {
             { idx: 5, color: '#6366f1' },
         ].map(c => this._renderConsumerGroup(c.idx, c.color, entities, entitySelectorSchema, textSelectorSchema, iconSelectorSchema))}
       `;
+    }
+
+    // Sensors with the unit "kW" are converted automatically by the card, so the kW switch is only
+    // offered when it is already on or one of the selected sensors reports no unit at all.
+    _needsKwSwitch(ids, isOn) {
+        if (isOn) return true;
+        const states = this.hass && this.hass.states;
+        if (!states) return false;
+        return ids.some(id => {
+            const st = id ? states[id] : null;
+            if (!st) return false;
+            const u = st.attributes && st.attributes.unit_of_measurement;
+            return u === undefined || u === null || String(u).trim() === '';
+        });
     }
 
     render() {
@@ -1190,6 +1308,14 @@ class PowerFluxCardEditor extends LitElement {
             ${this._renderSwitch('compact_view', 'editor.compact_view_enable', this._config.compact_view === true)}
             ${this._renderSwitch('compact_details', 'editor.compact_details', this._config.compact_details === true)}
             ${this._renderSwitch('compact_glow', 'editor.compact_glow', this._config.compact_glow === true)}
+            ${this._renderSwitch('compact_modern', 'editor.compact_modern', this._config.compact_modern === true)}
+            <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 8px;">
+                ${this._localize('editor.compact_modern_hint')}
+            </div>
+            ${this._renderSwitch('compact_show_soc', 'editor.compact_show_soc', this._config.compact_show_soc === true)}
+            <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 8px;">
+                ${this._localize('editor.compact_show_soc_hint')}
+            </div>
             ${this._renderSwitch('compact_icons_in_bracket', 'editor.compact_icons_in_bracket', this._config.compact_icons_in_bracket === true)}
             <div style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: 4px; margin-bottom: 8px;">
                 ${this._localize('editor.compact_icons_in_bracket_hint')}
@@ -1199,7 +1325,10 @@ class PowerFluxCardEditor extends LitElement {
                 ${this._localize('editor.compact_bar_selfuse_hint')}
             </div>
         </div>
-		
+
+        <div class="version-footer">
+            <a href="https://github.com/jayjojayson/power-flux-card/releases" target="_blank" rel="noopener noreferrer">⚡ Power Flux Card ${CARD_VERSION}</a>
+        </div>
       </div>
     `;
     }
